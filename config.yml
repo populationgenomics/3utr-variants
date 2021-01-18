@@ -2,10 +2,11 @@
 output_root: data/pas_out
 genome_assembly: GRCh37
 gnomAD:
+  subset: "22:15287990-21142207" # 371759 rows
   version: 2.1.1
-  gnomAD_ht: data/gnomad/v2.1.1/gnomad_22_ht.ht
-  context_ht: data/gnomad/v2.1.1/gnomad_22_context.ht
-  coverage_ht: data/gnomad/v2.1.1/gnomad_22_coverage.ht
+  gnomAD_ht: gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht # data/gnomad/v2.1.1/gnomad_22_ht.ht
+  context_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/context/Homo_sapiens_assembly19.fasta.snps_only.vep_20181129.ht # data/gnomad/v2.1.1/gnomad_22_context.ht
+  #coverage_ht: gs://gcp-public-data--gnomad/release/2.1/coverage/exomes/gnomad.exomes.r2.1.coverage.ht # data/gnomad/v2.1.1/gnomad_22_coverage.ht
   mutation_rate_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/model/mutation_rate_methylation_bins.ht
 databases:
   APAatlas_DaPars:

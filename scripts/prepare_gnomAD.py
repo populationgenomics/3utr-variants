@@ -1,4 +1,6 @@
 from gnomad.utils.vep import *
+import hail as hl
+from typing import *
 
 
 def get_worst_consequence_with_non_coding(ht):
@@ -14,7 +16,7 @@ def get_worst_consequence_with_non_coding(ht):
         if protein_coding:
             all_lofs = csq_list.map(lambda x: x.lof)
             lof = hl.literal(['HC', 'OS', 'LC']).find(lambda x: all_lofs.contains(x))
-            csq_list = hl.cond(hl.is_defined(lof), csq_list.filter(lambda x: x.lof == lof), csq_list)
+            csq_list = hl.if_else(hl.is_defined(lof), csq_list.filter(lambda x: x.lof == lof), csq_list)
             no_lof_flags = hl.or_missing(hl.is_defined(lof),
                                          csq_list.any(lambda x: (x.lof == lof) & hl.is_missing(x.lof_flags)))
             # lof_filters = hl.delimit(hl.set(csq_list.map(lambda x: x.lof_filter).filter(lambda x: hl.is_defined(x))), '|')
@@ -43,13 +45,12 @@ def get_worst_consequence_with_non_coding(ht):
             .default(get_worst_csq(ht.vep.intergenic_consequences, False)))
 
 
-def prepare_ht(ht, trimer: bool = False, annotate_coverage: bool = True):
+def prepare_ht(ht, trimer: bool = False):
     if trimer:
         def trimer_from_heptamer(t: Union[hl.MatrixTable, hl.Table]) -> Union[hl.MatrixTable, hl.Table]:
-            trimer_expr = hl.cond(hl.len(t.context) == 7, t.context[2:5], t.context)
+            trimer_expr = hl.if_else(hl.len(t.context) == 7, t.context[2:5], t.context)
             return t.annotate_rows(context=trimer_expr) if isinstance(t, hl.MatrixTable) else t.annotate(
                 context=trimer_expr)
-
         ht = trimer_from_heptamer(ht)
 
     str_len = 3 if trimer else 7
@@ -70,11 +71,12 @@ def prepare_ht(ht, trimer: bool = False, annotate_coverage: bool = True):
         ).default(0)
     }
 
-    if annotate_coverage:
-        annotation['exome_coverage'] = ht.coverage.exomes.median
+    if isinstance(ht, hl.Table):
+        ht = ht.annotate(**annotation)
+    else:
+        ht = ht.annotate_rows(**annotation)
 
-    return ht.annotate(**annotation) if isinstance(ht, hl.Table) \
-        else ht.annotate_rows(**annotation)
+    return ht
 
 
 def annotate_variant_types(t: Union[hl.MatrixTable, hl.Table], heptamers: bool = False) \
@@ -95,7 +97,7 @@ def annotate_variant_types(t: Union[hl.MatrixTable, hl.Table], heptamers: bool =
                          .when(t.cpg, 'CpG')
                          .when(t.transition, 'non-CpG transition')
                          .default('transversion'))
-    variant_type_model_expr = hl.cond(t.cpg, t.context, "non-CpG")
+    variant_type_model_expr = hl.if_else(t.cpg, t.context, "non-CpG")
     if isinstance(t, hl.MatrixTable):
         return t.annotate_rows(variant_type=variant_type_expr, variant_type_model=variant_type_model_expr)
     else:
@@ -111,41 +113,52 @@ def collapse_strand(ht: Union[hl.Table, hl.MatrixTable]) -> Union[hl.Table, hl.M
                     .when('G', 'C')
                     .when('C', 'G')
                     .default(base))
-
         return hl.delimit(hl.range(bases.length() - 1, -1, -1).map(lambda i: flip_base(bases[i])), '')
 
     collapse_expr = {
-        'ref': hl.cond(((ht.ref == 'G') | (ht.ref == 'T')),
+        'ref': hl.if_else(((ht.ref == 'G') | (ht.ref == 'T')),
                        reverse_complement_bases(ht.ref), ht.ref),
-        'alt': hl.cond(((ht.ref == 'G') | (ht.ref == 'T')),
+        'alt': hl.if_else(((ht.ref == 'G') | (ht.ref == 'T')),
                        reverse_complement_bases(ht.alt), ht.alt),
-        'context': hl.cond(((ht.ref == 'G') | (ht.ref == 'T')),
+        'context': hl.if_else(((ht.ref == 'G') | (ht.ref == 'T')),
                            reverse_complement_bases(ht.context), ht.context),
         'was_flipped': (ht.ref == 'G') | (ht.ref == 'T')
     }
-    return ht.annotate(**collapse_expr) if isinstance(ht, hl.Table) else ht.annotate_rows(**collapse_expr)
+    if isinstance(ht, hl.Table):
+        ht = ht.annotate(**collapse_expr)
+    else:
+        ht = ht.annotate_rows(**collapse_expr)
+
+    return ht
 
 
 if __name__ == '__main__':
-    hl.init()
+    hl.init(local=f"local[{snakemake.threads}]", default_reference=snakemake.config['genome_assembly'])
 
-    gnomAD_out_ht = snakemake.output[0]
+    # output paths
+    checkpoint_ht = snakemake.output['checkpoint']
+    gnomAD_out_ht = snakemake.output['gnomAD_ht']
 
+    subset_interval = hl.parse_locus_interval(snakemake.config['gnomAD']['subset'])
+
+    # subset context table
     context_ht = hl.read_table(snakemake.config["gnomAD"]["context_ht"])
-    coverage_ht = hl.read_table(snakemake.config["gnomAD"]["coverage_ht"])
-    ht = hl.read_table(snakemake.config["gnomAD"]["gnomAD_ht"])
+    context_ht = hl.filter_intervals(context_ht, [subset_interval])
 
-    ht = ht.annotate(coverage=coverage_ht[ht.locus].median)
-    ht = ht.filter((hl.len(ht.filters) == 0))  # & get_an_adj_criteria(ht, sample_sizes))
+    # prepare gnomAD table
+    ht = hl.read_table(snakemake.config["gnomAD"]["gnomAD_ht"])
+    ht = hl.filter_intervals(ht, [subset_interval])
+    ht = ht.filter(hl.len(ht.filters) == 0)
     ht = filter_vep_to_canonical_transcripts(ht)
+    ht = ht.checkpoint(checkpoint_ht)
+    print(f"entries in gnomAD after filtering: {ht.count()}")
 
     ht = get_worst_consequence_with_non_coding(ht)
 
     context = context_ht[ht.key]
     snp_ht = prepare_ht(
         ht=ht.annotate(context=context.context, methylation=context.methylation),
-        trimer=True,
-        annotate_coverage=False)
-    snp_ht = snp_ht.persist()
-
+        trimer=True
+    )
+    print('save...')
     snp_ht.write(gnomAD_out_ht)

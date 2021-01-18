@@ -9,14 +9,15 @@ rule dependency:
     shell: "snakemake --dag | dot -Tsvg -Grankdir=TB > {output}"
 
 rule prepare_gnomAD:
-    params:
-          version=config["gnomAD"]["version"]
-    output: directory(output_root + "/gnomAD.ht")
+    threads: 10
+    output:
+        checkpoint=temp(directory(output_root + "/gnomAD_tmp.ht")),
+        gnomAD_ht=directory(output_root + "/gnomAD.ht")
     script: "scripts/prepare_gnomAD.py"
 
 rule extract_Gencode_UTR:
     input: config["databases"]["Gencode"]["file"]
-    output: output_root + "/processed_data/Gencode/3UTR.bed"
+    output: output_root + "/Gencode/3UTR.bed"
     shell:
         """
         zcat {input} | grep three_prime_UTR | gff2bed > {output}
@@ -24,7 +25,7 @@ rule extract_Gencode_UTR:
 
 rule extract_Gencode_PAS:
     input: rules.extract_Gencode_UTR.output
-    output: output_root + "/processed_data/Gencode/PAS.gff3"
+    output: output_root + "/Gencode/PAS.gff3"
     run:
         """
         # TODO: determine 3UTR start depending on strand
@@ -32,16 +33,16 @@ rule extract_Gencode_PAS:
 
 rule extract_PolyA_DB:
     input: config["databases"]["PolyA_DB"]["file"]
-    output: output_root + "/processed_data/PolyA_DB/PAS.bed"
+    output: output_root + "/PolyA_DB/PAS.bed"
     shell: "zcat {input} | grep three_prime_UTR > {output}"
 
 rule score_MAPS:
     # TODO: generalise by DB type
     input:
          bed=rules.extract_Gencode_UTR.output,
-         gnomAD=rules.prepare_gnomAD.output
+         gnomAD=rules.prepare_gnomAD.output['gnomAD_ht']
     output:
-          maps=directory(output_root + "/processed_data/Gencode/MAPS.ht"),
+          maps=directory(output_root + "/Gencode/MAPS.ht"),
           done=touch(output_root + "/.done")
     threads: 10
     script: "scripts/maps_score.py"
