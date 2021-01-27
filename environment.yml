@@ -16,6 +16,8 @@ dependencies:
   - bedtools>=2.29
   - bedops>=2.4
   - pybedtools
+  - matplotlib
+  - seaborn
   - pip:
     - hail>=0.2.61
     - gnomad>=0.4
