@@ -33,8 +33,12 @@ rule extract_Gencode_PAS:
 
 rule extract_PolyA_DB:
     input: config["databases"]["PolyA_DB"]["file"]
-    output: output_root + "/PolyA_DB/PAS.bed"
-    shell: "zcat {input} | grep three_prime_UTR > {output}"
+    output:
+        PAS=output_root + "/PolyA_DB/PAS.bed",
+        PAS_context_40nt=output_root + "/PolyA_DB/PAS_context_40nt.bed",
+        PAS_context_100nt=output_root + "/PolyA_DB/PAS_context_100nt.bed"
+    script: 'scripts/extract_PolyA_DB.py'
+
 
 rule score_MAPS:
     # TODO: generalise by DB type
