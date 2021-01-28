@@ -19,7 +19,7 @@ rule genomepy:
             -g $genome_dir >> {log} 2>&1
         """
 
-assembly_ucsc = 'hg19' if config['genome_assembly'] == 'GChr37' else 'GChr38'
-
 rule get_fasta:
-    input: expand(rules.genomepy.output, assembly=assembly_ucsc)
+    input: expand(rules.genomepy.output, assembly=config['assembly_ucsc'])
+
+# TODO: download PolyA_DB3

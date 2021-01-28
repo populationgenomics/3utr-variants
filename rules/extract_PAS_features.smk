@@ -18,9 +18,12 @@ rule extract_Gencode_PAS:
         """
 
 rule extract_PolyA_DB:
-    input: config["databases"]["PolyA_DB"]["file"]
+    input:
+        db=config["databases"]["PolyA_DB"]["file"],
+        fasta=expand(rules.genomepy.output[0], assembly=config['assembly_ucsc'])
     output:
         PAS=output_root + "/PolyA_DB/PAS.bed",
         PAS_context_40nt=output_root + "/PolyA_DB/PAS_context_40nt.bed",
-        PAS_context_100nt=output_root + "/PolyA_DB/PAS_context_100nt.bed"
-    script: 'scripts/extract_PolyA_DB.py'
+        PAS_context_100nt=output_root + "/PolyA_DB/PAS_context_100nt.bed",
+        PAS_hexamers=output_root + "/PolyA_DB/PAS_hexamers.bed"
+    script: '../scripts/extract_PolyA_DB.py'

@@ -19,6 +19,7 @@ dependencies:
   - matplotlib
   - seaborn
   - genomepy
+  - pysam
   - pip:
     - hail>=0.2.61
     - gnomad>=0.4
