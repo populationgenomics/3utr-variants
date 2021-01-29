@@ -8,8 +8,10 @@ def create_signal_interval(feature, signal, sequence):
     return (
         pybedtools.Interval(
             chrom=feature.chrom,
-            start=feature.start + i.start(),
-            end=feature.start + i.start() + 6,
+            start=feature.end - i.end() if feature.strand == '-'
+            else feature.start + i.start(),
+            end=feature.end - i.start() if feature.strand == '-'
+            else feature.start + i.end(),
             name=signal,
             score=feature.score,
             strand=feature.strand
@@ -21,7 +23,7 @@ def create_signal_interval(feature, signal, sequence):
 def get_hexamers(feature: pybedtools.Interval, sequence: str):
     if feature.name == "NoPAS":
         return []
-    elif feature.name == "Other PAS":
+    elif feature.name == "OtherPAS":
         signal_sequences = ['AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'AAAAAG', 'ACTAAA']
     elif feature.name == "Arich":
         signal_sequences = ['AAAAAA']
@@ -79,4 +81,4 @@ if __name__ == '__main__':
     bed.saveas(out_pas)
     bed.slop(b=40, genome=genome).saveas(out_40nt)
     bed.slop(b=100, genome=genome).saveas(out_100nt)
-    pybedtools.BedTool(hexamer_intervals).sort().merge().saveas(out_hex)
+    pybedtools.BedTool(hexamer_intervals).saveas(out_hex)
