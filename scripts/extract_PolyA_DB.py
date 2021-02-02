@@ -1,31 +1,64 @@
+"""Extract PolyA sites and cis-elements from PolyA_DB3"""
+
+import re
+from typing import Iterable
+
 import pandas as pd
 import pybedtools
-from pysam import FastaFile
-import re
+from pysam import FastaFile  # pylint: disable=no-name-in-module
 
 
-def create_signal_interval(feature, signal, sequence):
+def create_signal_interval(
+    feature: pybedtools.Interval, signal: str, sequence: str
+) -> Iterable[pybedtools.Interval]:
+    """
+    Create pybedtools.Interval objects of signal locations within given interval
+
+    :param feature: interval in which to search for signal
+    :param signal: sequence of signal motif
+    :param sequence: sequence of feature interval
+    :return: generator of signal locations
+    """
     return (
         pybedtools.Interval(
             chrom=feature.chrom,
-            start=feature.end - i.end() if feature.strand == '-'
+            start=feature.end - i.end()
+            if feature.strand == '-'
             else feature.start + i.start(),
-            end=feature.end - i.start() if feature.strand == '-'
+            end=feature.end - i.start()
+            if feature.strand == '-'
             else feature.start + i.end(),
             name=signal,
             score=feature.score,
-            strand=feature.strand
+            strand=feature.strand,
         )
         for i in re.finditer(signal, sequence, re.IGNORECASE)
     )
 
 
 def get_hexamers(feature: pybedtools.Interval, sequence: str):
-    if feature.name == "NoPAS":
+    """
+    Retrieve all hexamers of regions from within given interval
+
+    :param feature: interval of interest
+    :param sequence: sequence of feature interval
+    :return: list of hexamer coordinates
+    """
+    if feature.name == 'NoPAS':
         return []
-    elif feature.name == "OtherPAS":
-        signal_sequences = ['AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'AAAAAG', 'ACTAAA']
-    elif feature.name == "Arich":
+    if feature.name == 'OtherPAS':
+        signal_sequences = [
+            'AGTAAA',
+            'TATAAA',
+            'CATAAA',
+            'GATAAA',
+            'AATATA',
+            'AATACA',
+            'AATAGA',
+            'AAAAAG',
+            'ACTAAA',
+        ]
+    elif feature.name == 'Arich':
         signal_sequences = ['AAAAAA']
     else:
         signal_sequences = [feature.name]
@@ -40,8 +73,8 @@ def get_hexamers(feature: pybedtools.Interval, sequence: str):
 
 if __name__ == '__main__':
     genome = snakemake.config['assembly_ucsc']
-    pas_db = str(snakemake.input.db)
-    fasta_file = str(snakemake.input.fasta)
+    pas_db = snakemake.input.db.__str__()
+    fasta_file = snakemake.input.fasta.__str__()
 
     out_pas = snakemake.output.PAS
     out_40nt = snakemake.output.PAS_context_40nt
@@ -55,30 +88,35 @@ if __name__ == '__main__':
 
     # create bedtools object/table
     df['Start'] = df['Position'] - 1
-    df['Name'] = df['PAS Signal']  # df['Gene Symbol']  + '/' + df['Position'].map(str) + '/' + df['Strand']
+    df['Name'] = df[
+        'PAS Signal'
+    ]  # df['Gene Symbol']  + '/' + df['Position'].map(str) + '/' + df['Strand']
     bed_cols = [
         'Chromosome',  # chrom
         'Start',  # start
         'Position',  # end
         'Name',  # name
         'PSE',  # score
-        'Strand'  # strand
+        'Strand',  # strand
     ]
     bed = pybedtools.BedTool.from_dataframe(df[bed_cols].drop_duplicates())
     print('BedTools object created')
 
     # extract hexamers form 40nt upstream
-    bed_40nt = bed.slop(l=40, r=0, s=True, genome=genome).sequence(fi=fasta_file, s=True, fullHeader=True)
+    bed_40nt = bed.slop(  # pylint: disable=unexpected-keyword-arg
+        l=40, r=0, s=True, genome=genome
+    ).sequence(fi=fasta_file, s=True, fullHeader=True)
     sequences = FastaFile(bed_40nt.seqfn)
 
     print('extract hexamers')
     hexamer_intervals = []
-    for feature in bed_40nt:
-        sequence = sequences.fetch(f"{feature.chrom}:{feature.start}-{feature.stop}({feature.strand})")
-        hexamer_intervals.extend(get_hexamers(feature, sequence))
+    for f in bed_40nt:
+        seq = sequences.fetch(f'{f.chrom}:{f.start}-{f.stop}({f.strand})')
+        hexamer_intervals.extend(get_hexamers(f, seq))
 
     print('save...')
+    # fmt: off
     bed.saveas(out_pas)
-    bed.slop(b=40, genome=genome).saveas(out_40nt)
-    bed.slop(b=100, genome=genome).saveas(out_100nt)
+    bed.slop(b=40, genome=genome).saveas(out_40nt)  # pylint: disable=unexpected-keyword-arg
+    bed.slop(b=100, genome=genome).saveas(out_100nt)  # pylint: disable=unexpected-keyword-arg
     pybedtools.BedTool(hexamer_intervals).saveas(out_hex)

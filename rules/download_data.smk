@@ -2,8 +2,10 @@ output_root = config["output_root"]
 
 rule genomepy:
     output:
-        multiext(output_root + "/reference/{assembly}/{assembly}",
+        protected(
+            multiext(output_root + "/reference/{assembly}/{assembly}",
                  ".fa", ".fa.fai", ".fa.sizes", ".annotation.gtf.gz", ".annotation.bed.gz")
+        )
     log:
         output_root + "/logs/genomepy_{assembly}.log"
     params:
