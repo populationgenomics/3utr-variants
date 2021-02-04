@@ -11,7 +11,7 @@ include: 'rules/evaluation.smk'
 rule all:
     input:
         expand(
-            rules.MAPS_local.output,
+            rules.MAPS_local.output if config['local'] else rules.MAPS_GCP.output,
             variant_subset=[
                 'PolyADB_hexamers',
                 #'Gencode_UTR'
