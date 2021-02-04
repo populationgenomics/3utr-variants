@@ -1,35 +1,8 @@
 """Compute MAPS score"""
 
 from typing import List, Union
-import pybedtools
 import hail as hl
 import sys
-
-
-def bed_to_hail_interval(file: str, ref: str) -> List[hl.IntervalExpression]:
-    """
-    Merge overlapping intervals to reduce number of hail interval queries
-
-    :param file: this is a first param
-    :param ref: name of reference genome 'GRCh37' or 'GRChr38'
-    :returns: list of converted hail.IntervalExpression objects
-    """
-    bed_intervals = pybedtools.BedTool(file)
-    print(f'number of bed intervals: {len(bed_intervals)}')
-
-    # shape bed intervals for parsing hail locus interval
-    chr_style = '' if ref == 'GRCh37' else 'chr'
-
-    def format_interval(x: pybedtools.Interval):
-        chromosome = str(x.chrom)
-        if chr_style == '' and 'chr' in chromosome:
-            chromosome = chromosome.replace('chr', '')
-        elif chr_style == 'chr' and 'chr' not in chromosome:
-            chromosome = f'chr{chromosome}'
-        return f'{chromosome}:{x.start + 1}-{x.stop + 1}'
-
-    locus_interval = map(format_interval, bed_intervals)
-    return [hl.parse_locus_interval(x, reference_genome=ref) for x in locus_interval]
 
 
 def downsampling_counts_expr(
@@ -194,8 +167,8 @@ def maps(
 
 
 if __name__ == '__main__':
-    reference_genome = snakemake.config['genome_assembly']
-    bed_file = snakemake.input['bed'].__str__()
+    ref = snakemake.config['genome_assembly']
+    interval_file = snakemake.input['intervals'].__str__()
     gnomad_path = snakemake.input['gnomAD'].__str__()
     mutation_path = snakemake.config['gnomAD']['mutation_rate_ht'].__str__()
     out_dir = snakemake.output['maps']
@@ -203,11 +176,14 @@ if __name__ == '__main__':
     hl.init(
         local=f'local[{snakemake.threads}]',
         log=snakemake.log[0],
-        default_reference=reference_genome,
+        default_reference=ref,
     )
 
-    intervals = bed_to_hail_interval(bed_file, ref=reference_genome)
     # intervals = hl.import_bed(bed_file, reference_genome=reference_genome')
+    with open(interval_file, 'r') as f:
+        intervals = f.readlines()
+    intervals = [hl.parse_locus_interval(x, reference_genome=ref) for x in intervals]
+
     mutation_ht = hl.read_table(mutation_path)
     snp_ht = hl.read_table(gnomad_path)
 

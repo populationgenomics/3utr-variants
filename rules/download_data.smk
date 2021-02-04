@@ -1,13 +1,10 @@
-output_root = config["output_root"]
-
 rule genomepy:
     output:
         protected(
-            multiext(output_root + "/reference/{assembly}/{assembly}",
+            multiext(str(output_root/"reference/{assembly}/{assembly}"),
                  ".fa", ".fa.fai", ".fa.sizes", ".annotation.gtf.gz", ".annotation.bed.gz")
         )
-    log:
-        output_root + "/logs/genomepy_{assembly}.log"
+    log: str(output_root/"logs/genomepy_{assembly}.log")
     params:
         provider="UCSC"  # optional, defaults to ucsc. Choose from ucsc, ensembl, and ncbi
     cache: True  # mark as eligible for between workflow caching
