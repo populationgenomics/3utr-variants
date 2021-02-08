@@ -50,4 +50,4 @@ rule MAPS_local:
           maps=directory(output_root/'MAPS/{variant_subset}_local.ht')
     log: str(output_root/'logs/hail_MAPS_{variant_subset}_local.log')
     threads: 10
-    script: '../scripts/maps_score.py'
+    script: '../scripts/maps_gcp.py'
