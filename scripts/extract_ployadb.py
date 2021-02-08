@@ -76,15 +76,10 @@ if __name__ == '__main__':
     pas_db = snakemake.input.db.__str__()
     fasta_file = snakemake.input.fasta.__str__()
 
-    out_pas = snakemake.output.PAS
-    out_40nt = snakemake.output.PAS_context_40nt
-    out_100nt = snakemake.output.PAS_context_100nt
-    out_hex = snakemake.output.PAS_hexamers
-
     print('read database')
     df = pd.read_csv(pas_db, sep='\t')
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
-    # TODO: filter dataset
+    df = df[df['Conservation'] == 'Yes']
 
     # create bedtools object/table
     df['Start'] = df['Position'] - 1
@@ -102,21 +97,27 @@ if __name__ == '__main__':
     bed = pybedtools.BedTool.from_dataframe(df[bed_cols].drop_duplicates())
     print('BedTools object created')
 
-    # extract hexamers form 40nt upstream
+    print('extract hexamers')
     bed_40nt = bed.slop(  # pylint: disable=unexpected-keyword-arg
         l=40, r=0, s=True, genome=genome
     ).sequence(fi=fasta_file, s=True, fullHeader=True)
     sequences = FastaFile(bed_40nt.seqfn)
 
-    print('extract hexamers')
     hexamer_intervals = []
     for f in bed_40nt:
         seq = sequences.fetch(f'{f.chrom}:{f.start}-{f.stop}({f.strand})')
         hexamer_intervals.extend(get_hexamers(f, seq))
 
     print('save...')
+    out = snakemake.output
     # fmt: off
-    bed.saveas(out_pas)
-    bed.slop(b=40, genome=genome).saveas(out_40nt)  # pylint: disable=unexpected-keyword-arg
-    bed.slop(b=100, genome=genome).saveas(out_100nt)  # pylint: disable=unexpected-keyword-arg
-    pybedtools.BedTool(hexamer_intervals).saveas(out_hex)
+    bed.saveas(out.PAS)
+    # pylint: disable=unexpected-keyword-arg
+    bed.slop(b=40, genome=genome).saveas(out.PAS_context_40nt)
+    # pylint: disable=unexpected-keyword-arg
+    bed.slop(b=100, genome=genome).saveas(out.PAS_context_100nt)
+    pybedtools.BedTool(hexamer_intervals).saveas(out.PAS_hexamers)
+
+    with open(out.stats, 'w') as f:
+        f.write(f'pA sites: {len(bed)}\n')
+        f.write(f'hexamers: {len(hexamer_intervals)}\n')

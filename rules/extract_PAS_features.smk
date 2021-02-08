@@ -25,6 +25,6 @@ rule extract_PolyA_DB:
         PAS=interval_out_dir/'PolyA_DB_PAS.bed',
         PAS_context_40nt=interval_out_dir/'PolyA_DB_PAS_context_40nt.bed',
         PAS_context_100nt=interval_out_dir/'PolyA_DB_PAS_context_100nt.bed',
-        PAS_hexamers=interval_out_dir/'PolyA_DB_PAS_hexamers.bed'
-        # TODO: include basic stats
-    script: '../scripts/extract_PolyA_DB.py'
+        PAS_hexamers=interval_out_dir/'PolyA_DB_PAS_hexamers.bed',
+        stats=interval_out_dir/'PolyA_DB_stats.txt'
+    script: '../scripts/extract_polyadb.py'
