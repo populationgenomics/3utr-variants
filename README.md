@@ -16,11 +16,41 @@ The dependencies are available as a conda environment.
 
 ```commandline
 conda env create -f environment.yml
+conda activate utr-variants
 ```
 
+The pipeline can run `hail` operations locally or on the Google Cloud Platform (GCP).
+In order to run locally, you need to install the `gcs-connector` in the new environment.
+
+```shell script
+curl -sSL https://broad.io/install-gcs-connector | python
+```
+
+### Configuration
+
 The `config.yml` file contains links to hail datasets and local files.
-Local input files and output direcories can be modified accordingly.
-In order to run the pipeline, simply call
+Local input files and output directories can be modified accordingly.
+For GCP runs, keys `bucket` and `cluster` need to be specified, and the key `local` needs to be set to `false` in the `config.yml`.
+
+```yaml
+bucket: bucket_name
+cluster: cluster_name
+local: false
+```
+
+For `bucket` you need to give the GCP storage bucket name you want your output to be stored in, while `cluster` defines the name of the `hailctl dataproc` cluster.
+Before calling the `snakemake` pipeline, start the `dataproc` session, preferrably with a compute timeout.
+
+```commandline
+hailctl dataproc start cluster_name --max-age=2h
+```
+
+The pipeline runs locally, if `local` is set to `true`.
+In that case, the `bucket` and `cluster` keys do not need to be specified.
+
+### Call the Pipeline
+
+In order to call the pipeline, simply run
 
 ```commandline
 snakemake -n
@@ -32,4 +62,4 @@ for a dry run, or
 snakemake -j 10
 ```
 
-to invoke the scripts.
+to invoke the scripts, where `-j` or `--cores` sets the number of cores to be used.
