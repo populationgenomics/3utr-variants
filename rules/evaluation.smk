@@ -23,7 +23,7 @@ rule MAPS_GCP:
         hailctl dataproc submit {config[cluster]} \
             --files {input} \
             --pyfiles {params.gnomad_prepare},{params.maps_score} \
-            ../scripts/compute_maps.py  -o $OUTPUT --intervals {input} \
+            ../scripts/maps_gcp.py  -o $OUTPUT --intervals {input} \
             --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
             --context_ht {config[gnomAD][context_ht]} \
             --mutation_ht {config[gnomAD][mutation_rate_ht]} \
@@ -50,4 +50,4 @@ rule MAPS_local:
           maps=directory(output_root/'MAPS/{variant_subset}_local.ht')
     log: str(output_root/'logs/hail_MAPS_{variant_subset}_local.log')
     threads: 10
-    script: '../scripts/maps_gcp.py'
+    script: '../scripts/maps_score.py'
