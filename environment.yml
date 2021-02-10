@@ -2,15 +2,11 @@ name: utr-variants
 channels:
   - conda-forge
   - bioconda
+  - cpg
 dependencies:
   - python=3.7
   - pip
-  - hail>=0.2.61
-  #- gcc_linux-64
-  #- gxx_linux-64
-  #- libopenblas
-  #- liblapack
-  #- openjdk=8
+  - cpg::hail=0.2.61.devc153e1f
   - igv>=2.4
   - snakemake=5
   - htslib
