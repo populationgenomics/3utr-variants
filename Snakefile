@@ -19,5 +19,13 @@ rule all:
         )
 
 rule dependency:
-    output: output_root/'dependency.svg'
-    shell: 'snakemake --dag | dot -Tsvg -Grankdir=TB > {output}'
+    output:
+        dag=multiext(str(output_root/'dependency_dag'), '.svg', '.png'),
+        rulegraph=multiext(str(output_root/'dependency_rules'), '.svg', '.png')
+    shell:
+        """
+        snakemake --dag | dot -Tsvg -Grankdir=TB > {output.dag[0]}
+        snakemake --dag | dot -Tpng -Grankdir=TB > {output.dag[1]}
+        snakemake --rulegraph | dot -Tsvg -Grankdir=TB > {output.rulegraph[0]}
+        snakemake --rulegraph | dot -Tpng -Grankdir=TB > {output.rulegraph[1]}
+        """

@@ -63,3 +63,22 @@ snakemake -j 10
 ```
 
 to invoke the scripts, where `-j` or `--cores` sets the number of cores to be used.
+
+### Workflow Graph
+
+It is useful to get a visual representation of what will be computed.
+For that, you can call the `dependency` rule that creates graphs for the dependency between rules (more general) and jobs (specific to wildcards).
+
+```commandline
+snakemake dependency -Fn
+```
+
+The output files can be found in the `output_root` directory specified in `config.yml`.
+
+#### Rule graph for local run
+
+![rulegraph](dependency_rules.png)
+
+#### Job graph for local run
+
+![dag](dependency_dag.png)
