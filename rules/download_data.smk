@@ -22,3 +22,13 @@ rule get_fasta:
     input: expand(rules.genomepy.output, assembly=config['assembly_ucsc'])
 
 # TODO: download PolyA_DB3
+# rule get_PolyA_DB:
+#     output: output_root/'annotations/PolyA_DB3/human.PAS.txt'
+#     params:
+#         url=config['databases']['PolyA_DB']['url']
+#     shell:
+#         """
+#         cd $(dirname {output})
+#         wget --no-check-certificate {params.url}
+#         unzip human_pas.zip
+#         """
