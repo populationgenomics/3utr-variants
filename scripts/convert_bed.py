@@ -1,9 +1,20 @@
+"""
+Convert and subset bed file intervals to match chromosome style of gnomAD
+
+When run as script, intersect UTR intervals by overall gnomAD subset
+    Input: bed file
+    Output: txt file of hail-parsable interval strings
+"""
+
 import pybedtools
 
 
 def convert_chr_style(
     interval: pybedtools.Interval, chr_style: str
 ) -> pybedtools.Interval:
+    """
+    Convert chromosome style of interval  to match chr_style
+    """
     if chr_style == '' and 'chr' in interval.chrom:
         interval.chrom = interval.chrom.replace('chr', '')
     elif chr_style == 'chr' and 'chr' not in interval.chrom:

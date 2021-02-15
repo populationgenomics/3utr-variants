@@ -1,13 +1,25 @@
-"""Subset and annotate gnomAD hail table"""
+"""
+Annotate gnomAD hail table (local run)
+Functions from https://github.com/macarthur-lab/gnomad_lof
 
+When run as script, subset and annotate gnomAD hail table and save locally
+    Input:
+        gnomAD hail table URL (specified in config)
+        context hail table URL (specified in config)
+    Output:
+        directory for subset and annotated gnomAD hail table
+"""
+
+from typing import Union
 import gnomad.utils.vep
 import hail as hl
-from typing import Union
 
 
 def get_worst_consequence_with_non_coding(ht):
     """
     copied and adapted from gnomad_lof
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L18 # noqa: E501
+    removed commented statements
     """
 
     def get_worst_csq(
@@ -20,15 +32,13 @@ def get_worst_consequence_with_non_coding(ht):
         if protein_coding:
             all_lofs = csq_list.map(lambda x: x.lof)
             lof = hl.literal(['HC', 'OS', 'LC']).find(all_lofs.contains)
-            csq_list = hl.if_else(
+            csq_list = hl.if_else(  # changed from cond to ifelse
                 hl.is_defined(lof), csq_list.filter(lambda x: x.lof == lof), csq_list
             )
             no_lof_flags = hl.or_missing(
                 hl.is_defined(lof),
                 csq_list.any(lambda x: (x.lof == lof) & hl.is_missing(x.lof_flags)),
             )
-            # lof_filters = hl.delimit(hl.set(csq_list.map(lambda x: x.lof_filter).filter(lambda x: hl.is_defined(x))), '|')
-            # lof_flags = hl.delimit(hl.set(csq_list.map(lambda x: x.lof_flags).filter(lambda x: hl.is_defined(x))), '|')
         all_csq_terms = csq_list.flatmap(lambda x: x.consequence_terms)
         worst_csq = hl.literal(gnomad.utils.vep.CSQ_ORDER).find(all_csq_terms.contains)
         return hl.struct(
@@ -36,8 +46,6 @@ def get_worst_consequence_with_non_coding(ht):
             protein_coding=protein_coding,
             lof=lof,
             no_lof_flags=no_lof_flags,
-            # lof_filters=lof_filters,
-            # lof_flags=lof_flags
         )
 
     protein_coding = ht.vep.transcript_consequences.filter(
@@ -63,6 +71,13 @@ def get_worst_consequence_with_non_coding(ht):
 
 
 def prepare_ht(ht, trimer: bool = False):
+    """
+    adapted from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/constraint_basics.py#L199 # noqa: E501
+    removed annotate_coverage parameter
+    include as inner function: trimer_from_heptamer
+        https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L162 # noqa: E501
+    """
     if trimer:
 
         def trimer_from_heptamer(
@@ -115,6 +130,8 @@ def annotate_variant_types(
 ) -> Union[hl.MatrixTable, hl.Table]:
     """
     Adds cpg, transition, and variant_type, variant_type_model columns
+    from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L110 # noqa: E501
     """
     mid_index = 3 if heptamers else 1
     transition_expr = (
@@ -153,6 +170,15 @@ def annotate_variant_types(
 def collapse_strand(
     ht: Union[hl.Table, hl.MatrixTable]
 ) -> Union[hl.Table, hl.MatrixTable]:
+    """
+    from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L36 # noqa E501
+    include as inner function reverse_complement_bases
+        https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L22 # noqa E501
+    include as inner function flip_base
+        https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L27
+    """
+
     def reverse_complement_bases(
         bases: hl.expr.StringExpression,
     ) -> hl.expr.StringExpression:
@@ -188,12 +214,11 @@ def collapse_strand(
         ),
         'was_flipped': (ht.ref == 'G') | (ht.ref == 'T'),
     }
-    if isinstance(ht, hl.Table):
-        ht = ht.annotate(**collapse_expr)
-    else:
-        ht = ht.annotate_rows(**collapse_expr)
-
-    return ht
+    return (
+        ht.annotate(**collapse_expr)
+        if isinstance(ht, hl.Table)
+        else ht.annotate_rows(**collapse_expr)
+    )
 
 
 if __name__ == '__main__':
@@ -202,10 +227,6 @@ if __name__ == '__main__':
         default_reference=snakemake.config['genome_assembly'],
     )
 
-    # output paths
-    checkpoint_ht = snakemake.output['checkpoint']
-    gnomAD_out_ht = snakemake.output['gnomAD_ht']
-
     subset_interval = hl.parse_locus_interval(snakemake.config['gnomAD']['subset'])
 
     # subset context table
@@ -213,19 +234,18 @@ if __name__ == '__main__':
     context_ht = hl.filter_intervals(context_ht, [subset_interval])
 
     # prepare gnomAD table
-    ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
-    ht = hl.filter_intervals(ht, [subset_interval])
-    ht = ht.filter(hl.len(ht.filters) == 0)
-    ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
-    ht = ht.checkpoint(checkpoint_ht)
-    print(f'entries in gnomAD after filtering: {ht.count()}')
+    gnomAD_ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
+    gnomAD_ht = hl.filter_intervals(gnomAD_ht, [subset_interval])
+    gnomAD_ht = gnomAD_ht.filter(hl.len(gnomAD_ht.filters) == 0)
+    gnomAD_ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(gnomAD_ht)
+    print(f'entries in gnomAD after filtering: {gnomAD_ht.count()}')
 
-    ht = get_worst_consequence_with_non_coding(ht)
+    gnomAD_ht = get_worst_consequence_with_non_coding(gnomAD_ht)
 
-    context = context_ht[ht.key]
+    context = context_ht[gnomAD_ht.key]
     snp_ht = prepare_ht(
-        ht=ht.annotate(context=context.context, methylation=context.methylation),
+        ht=gnomAD_ht.annotate(context=context.context, methylation=context.methylation),
         trimer=True,
     )
     print('save...')
-    snp_ht.write(gnomAD_out_ht)
+    snp_ht.write(snakemake.output['gnomAD_ht'])

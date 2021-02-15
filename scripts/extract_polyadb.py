@@ -1,7 +1,16 @@
-"""Extract PolyA sites and cis-elements from PolyA_DB3"""
+"""
+Extract PolyA sites and cis-elements & flanking regions from PolyA_DB3
+
+When run as script:
+    Input:
+        PolyA_DB database file
+        reference sequence in FASTA format
+    Output: bed files (see rules/extract_UTR_features.smk)
+"""
 
 import re
 from typing import Iterable
+from typing import List
 
 import pandas as pd
 import pybedtools
@@ -36,7 +45,9 @@ def create_signal_interval(
     )
 
 
-def get_hexamers(feature: pybedtools.Interval, sequence: str):
+def get_hexamers(
+    feature: pybedtools.Interval, sequence: str
+) -> List[pybedtools.Interval]:
     """
     Retrieve all hexamers of regions from within given interval
 

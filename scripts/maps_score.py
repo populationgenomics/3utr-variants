@@ -1,8 +1,20 @@
-"""Compute MAPS score"""
+"""
+Compute MAPS score (local run)
+Functions from https://github.com/macarthur-lab/gnomad_lof
 
-from typing import List, Union
-import hail as hl
+When run as script, compute MAPS score on local gnomAD hail table annotated
+in scripts/prepare_gnomad.py
+    Input:
+        UTR interval bed file
+        prepared gnomAD hail table directory
+    Output:
+        MAPS hail table directory
+"""
+
 import sys
+from typing import Union
+
+import hail as hl
 
 
 def downsampling_counts_expr(
@@ -12,6 +24,10 @@ def downsampling_counts_expr(
     singleton: bool = False,
     impose_high_af_cutoff: bool = False,
 ) -> hl.expr.ArrayExpression:
+    """
+    unmodified from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L49
+    """
     indices = hl.zip_with_index(ht.freq_meta).filter(
         lambda f: (f[1].size() == 3)
         & (f[1].get('group') == variant_quality)
@@ -21,7 +37,6 @@ def downsampling_counts_expr(
     sorted_indices = hl.sorted(indices, key=lambda f: hl.int(f[1]['downsampling'])).map(
         lambda x: x[0]
     )
-
     # TODO: this likely needs to be fixed for aggregations that return missing
 
     def get_criteria(i):
@@ -48,6 +63,8 @@ def count_variants(
     impose_high_af_cutoff_here: bool = False,
 ):
     """
+    unmodified from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L68
     Count variants by context, ref, alt, methylation_level
     """
 
@@ -103,10 +120,16 @@ def count_variants(
 def maps(
     ht: hl.Table,
     mutation_ht: hl.Table,
-    additional_grouping: List[str] = [],
+    additional_grouping=None,  # change from mutable default to None
     singleton_expression: hl.expr.BooleanExpression = None,
     skip_worst_csq: bool = False,
 ) -> hl.Table:
+    """
+    adapted from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L267
+    """
+    if additional_grouping is None:
+        additional_grouping = []  # use mutable default
     if not skip_worst_csq:
         additional_grouping.insert(0, 'worst_csq')
     ht = count_variants(
