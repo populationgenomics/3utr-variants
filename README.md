@@ -11,7 +11,8 @@ This project involves:
 
 ## Evaluation Metrics
 
-TODO: explain MAPS etc.
+The different 3' UTR variants are evaluated by the MAPS (mutability-adjusted proportion of singletons) score to measure the overall depletion of singletons, as described in the [gnomAD flagship paper](https://doi.org/10.1038/s41586-020-2308-7).
+A higher MAPS score (compared to a baseline) suggests that there is a stronger evolutionary selection against the variant group.
 
 ## Repository Files
 
