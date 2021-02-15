@@ -9,9 +9,28 @@ This project involves:
 - extracting PAS hexamers from [PolyA_DB3](https://exon.apps.wistar.org/polya_db/v3/misc/download.php)
 - computing MAPS score on different 3'UTR variants locally and on the cloud using [hailctl dataproc](https://hail.is/docs/0.2/cloud/google_cloud.html)
 
+## Evaluation Metrics
+
+TODO: explain MAPS etc.
+
+## Repository Files
+
+The repository mainly contains Snakefiles for `snakemake` pipeline rules in `rules/` and python scripts in `scripts/`.
+Additionally, there is a `qc/` directory for any exploratory analysis on input databases.
+
+The Snakefiles in `rules/` are used by the `Snakefile` in the repository root and cannot be run independently.
+Input paths, URLs and parameters are collected in `config.yml` and should be adapted by the user.
+The python scripts are linked to the snakemake objects that are passed when the pipeline is called, but some scripts can be run by themselves as well.
+How the python scripts are used is best demonstrated in the snakemake rules, where input and output files are defined.
+More information on scripts in snakemake pipeline is documented [here](https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#external-scripts).
+
 ## Pipeline
 
-The workflow is implemented as a snakemake pipeline.
+The workflow is implemented as a `snakemake` pipeline.
+A good resource on the idea of `snakemake` and how it works is its official [documentation](https://snakemake.readthedocs.io/en/stable/).
+
+### Installation
+
 The dependencies are available as a conda environment.
 
 ```commandline
@@ -74,6 +93,7 @@ snakemake dependency -Fn
 ```
 
 The output files can be found in the `output_root` directory specified in `config.yml`.
+Below are some examples of a local run.
 
 #### Rule graph for local run
 
