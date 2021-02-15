@@ -1,3 +1,7 @@
+"""
+Download genome sequence reference, gene and 3'UTR annotation files
+"""
+
 rule genomepy:
     output:
         protected(
@@ -28,10 +32,10 @@ rule download_PolyA_DB:
     shell:
         """
         tmpdir="$(dirname "$(tempfile)")"
+        # TODO: download from GCP bucket
         wget --no-check-certificate -nc -P $tmpdir {params.url}
         unzip "$tmpdir"/human_pas.zip -d $(dirname {output})
         """
-
 
 rule download_Gencode:
     output: output_root/'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'

@@ -1,3 +1,8 @@
+"""
+Main Snakefile
+Contains final rule, dependency graph rule, and connects Snakefiles from rules/
+"""
+
 from pathlib import Path
 
 configfile: 'config.yml'

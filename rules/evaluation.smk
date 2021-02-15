@@ -1,3 +1,8 @@
+"""
+Evaluate different 3' UTR subsets with MAPS score
+Includes preparation of interval formats, gnomAD hail table, local & CGP runs
+"""
+
 rule convert_bedfile:
     input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output: output_root/'intervals/{variant_subset}_hail.txt'

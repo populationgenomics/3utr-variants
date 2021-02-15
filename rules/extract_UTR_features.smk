@@ -1,3 +1,7 @@
+"""
+Extract UTR features from different annotations
+"""
+
 interval_out_dir = output_root / 'intervals'
 
 rule extract_Gencode_UTR:
