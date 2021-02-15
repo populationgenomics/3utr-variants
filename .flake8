@@ -15,5 +15,6 @@ inline-quotes = single
 multiline-quotes = """
 docstring-quotes = """
 
-# for snakemake pipeline
+# ignore snakemake variable scripts used by pipeline
+# https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#external-scripts
 builtins = snakemake

@@ -9,9 +9,10 @@
      https://github.com/psf/black/blob/master/docs/compatible_configs.md#why-those-options-above-2):
 #    C0330: Wrong hanging indentation before block (add 4 spaces)
 #    C0326: Bad whitespace
+#    C0301: Line too long (already checked by flake8, don't throw error for exceptions)
 # 5. fixme (left 'TODO' lines)
 
-disable=f-string-without-interpolation,inherit-non-class,too-few-public-methods,C0330,C0326,fixme
+disable=f-string-without-interpolation,inherit-non-class,too-few-public-methods,C0330,C0326,C0301,fixme
 
 # Overriding variable name patterns to allow short 1- or 2-letter variables
 attr-rgx=[a-z_][a-z0-9_]{0,30}$
