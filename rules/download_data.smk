@@ -21,14 +21,23 @@ rule genomepy:
 rule get_fasta:
     input: expand(rules.genomepy.output, assembly=config['assembly_ucsc'])
 
-# TODO: download PolyA_DB3
-# rule get_PolyA_DB:
-#     output: output_root/'annotations/PolyA_DB3/human.PAS.txt'
-#     params:
-#         url=config['databases']['PolyA_DB']['url']
-#     shell:
-#         """
-#         cd $(dirname {output})
-#         wget --no-check-certificate {params.url}
-#         unzip human_pas.zip
-#         """
+rule download_PolyA_DB:
+    output: output_root/'annotations/PolyA_DB3/human.PAS.txt'
+    params:
+        url=config['databases']['PolyA_DB']['url']
+    shell:
+        """
+        tmpdir="$(dirname "$(tempfile)")"
+        wget --no-check-certificate -nc -P $tmpdir {params.url}
+        unzip "$tmpdir"/human_pas.zip -d $(dirname {output})
+        """
+
+
+rule download_Gencode:
+    output: output_root/'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
+    params:
+        url=config['databases']['Gencode']['url']
+    shell:
+        """
+        wget -nc -P $(dirname {output}) {params.url}
+        """

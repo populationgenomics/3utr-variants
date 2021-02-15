@@ -1,8 +1,8 @@
 interval_out_dir = output_root / 'intervals'
 
 rule extract_Gencode_UTR:
-    input: config["databases"]["Gencode"]["file"]
-    output: interval_out_dir/'Gencode_3UTR.bed'
+    input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
+    output: interval_out_dir/'Gencode/3UTR.bed'
     shell:
         """
         zcat {input} | grep three_prime_UTR | gff2bed > {output}
@@ -16,8 +16,10 @@ rule extract_Gencode_PAS:
 
 rule extract_PolyA_DB:
     input:
-        db=config["databases"]["PolyA_DB"]["file"],
-        fasta=expand(rules.genomepy.output[0], assembly=config['assembly_ucsc'])
+        db=rules.download_PolyA_DB.output,  # config["databases"]["PolyA_DB"]["file"],
+        fasta=ancient(
+            expand(rules.genomepy.output[0], assembly=config['assembly_ucsc'])
+        )
     output:
         PAS=interval_out_dir/'PolyA_DB/PAS.bed',
         PAS_context_40nt=interval_out_dir/'PolyA_DB/context_40nt.bed',
