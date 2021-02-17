@@ -90,7 +90,8 @@ if __name__ == '__main__':
     print('read database')
     df = pd.read_csv(pas_db, sep='\t')
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
-    df = df[df['Conservation'] == 'Yes']
+    if snakemake.wildcards['filter'] == 'conserved':
+        df = df[df['Conservation'] == 'Yes']
 
     # create bedtools object/table
     df['Start'] = df['Position'] - 1

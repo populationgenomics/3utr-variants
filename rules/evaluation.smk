@@ -3,6 +3,26 @@ Evaluate different 3' UTR subsets with MAPS score
 Includes preparation of interval formats, gnomAD hail table, local & CGP runs
 """
 
+variant_subsets = {
+    'PolyADB_40nt-conserved': expand(
+        rules.extract_PolyA_DB.output.PAS_context_40nt,
+        filter='conserved'
+    ),
+    'PolyADB_100nt-conserved': expand(
+        rules.extract_PolyA_DB.output.PAS_context_100nt,
+        filter='conserved'
+    ),
+    #'PolyADB_hexamers-conserved': expand(
+    #    rules.extract_PolyA_DB.output.PAS_hexamers,
+    #    filter='conserved'
+    #),
+    'PolyADB_hexamers-all': expand(
+        rules.extract_PolyA_DB.output.PAS_hexamers,
+        filter='all'
+    ),
+    'Gencode_UTR': rules.extract_Gencode_UTR.output.utr
+}
+
 rule convert_bedfile:
     input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output: output_root/'intervals/{variant_subset}_hail.txt'

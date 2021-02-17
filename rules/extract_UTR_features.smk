@@ -6,17 +6,15 @@ interval_out_dir = output_root / 'intervals'
 
 rule extract_Gencode_UTR:
     input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
-    output: interval_out_dir/'Gencode/3UTR.bed'
+    output:
+        utr=interval_out_dir/'Gencode/3UTR.bed',
+        pas=interval_out_dir/'Gencode/PAS.bed'
     shell:
         """
-        zcat {input} | grep three_prime_UTR | gff2bed > {output}
-        # TODO: manage chromosome style depending on gene assembly
+        zcat {input} | grep three_prime_UTR | gff2bed > {output.utr}
+        # TODO: determine 3UTR start depending on strand
         """
 
-rule extract_Gencode_PAS:
-    input: rules.extract_Gencode_UTR.output
-    output: interval_out_dir/'Gencode/PAS.bed'
-    # TODO: determine 3UTR start depending on strand
 
 rule extract_PolyA_DB:
     input:
@@ -25,9 +23,9 @@ rule extract_PolyA_DB:
             expand(rules.genomepy.output[0], assembly=config['assembly_ucsc'])
         )
     output:
-        PAS=interval_out_dir/'PolyA_DB/PAS.bed',
-        PAS_context_40nt=interval_out_dir/'PolyA_DB/context_40nt.bed',
-        PAS_context_100nt=interval_out_dir/'PolyA_DB/context_100nt.bed',
-        PAS_hexamers=interval_out_dir/'PolyA_DB/hexamers.bed',
-        stats=interval_out_dir/'PolyA_DB/stats.txt'
+        PAS=interval_out_dir/'PolyA_DB/PAS-{filter}.bed',
+        PAS_context_40nt=interval_out_dir/'PolyA_DB/context_40nt-{filter}.bed',
+        PAS_context_100nt=interval_out_dir/'PolyA_DB/context_100nt-{filter}.bed',
+        PAS_hexamers=interval_out_dir/'PolyA_DB/hexamers-{filter}.bed',
+        stats=interval_out_dir/'PolyA_DB/stats-{filter}.txt'
     script: '../scripts/extract_polyadb.py'

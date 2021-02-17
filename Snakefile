@@ -11,12 +11,6 @@ config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else '
 
 include: 'rules/download_data.smk'
 include: 'rules/extract_UTR_features.smk'
-
-variant_subsets = {
-    'PolyADB_hexamers': rules.extract_PolyA_DB.output.PAS_hexamers,
-    'Gencode_UTR': rules.extract_Gencode_UTR.output
-}
-
 include: 'rules/evaluation.smk'
 
 rule all:
