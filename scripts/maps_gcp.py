@@ -64,11 +64,11 @@ if __name__ == '__main__':
 
     # subset context table
     context_ht = hl.read_table(args.context_ht)
-    context_ht = hl.filter_intervals(context_ht, [intervals])
+    context_ht = hl.filter_intervals(context_ht, intervals)
 
     # prepare gnomAD table
     ht = hl.read_table(args.gnomAD_ht)
-    ht = hl.filter_intervals(ht, [intervals])
+    ht = hl.filter_intervals(ht, intervals)
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     print(f'entries in gnomAD after filtering: {ht.count()}')
