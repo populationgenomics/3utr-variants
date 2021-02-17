@@ -194,11 +194,11 @@ if __name__ == '__main__':
     interval_file = snakemake.input['intervals'].__str__()
     gnomad_path = snakemake.input['gnomAD'].__str__()
     mutation_path = snakemake.config['gnomAD']['mutation_rate_ht'].__str__()
-    out_dir = snakemake.output['maps']
+    maps_out = snakemake.output['maps']
 
     hl.init(
         local=f'local[{snakemake.threads}]',
-        log=snakemake.log[0],
+        log=snakemake.log['hail'],
         default_reference=ref,
     )
 
@@ -218,4 +218,4 @@ if __name__ == '__main__':
     maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
 
     print('save...')
-    maps_ht.write(out_dir)
+    maps_ht.to_pandas().to_csv(maps_out, index=False)

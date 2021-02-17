@@ -224,6 +224,7 @@ def collapse_strand(
 if __name__ == '__main__':
     hl.init(
         local=f'local[{snakemake.threads}]',
+        log=snakemake.log['hail'],
         default_reference=snakemake.config['genome_assembly'],
     )
 
