@@ -62,7 +62,7 @@ For `bucket` you need to give the GCP storage bucket name you want your output t
 Before calling the `snakemake` pipeline, start the `dataproc` session, preferrably with a compute timeout.
 
 ```commandline
-hailctl dataproc start cluster_name --max-age=2h
+hailctl dataproc start cluster_name --max-age=2h --packages gnomad
 ```
 
 The pipeline runs locally, if `local` is set to `true`.
@@ -98,8 +98,8 @@ Below are some examples of a local run.
 
 #### Rule graph for local run
 
-![rulegraph](dependency_rules.png)
+![rulegraph](dependency_rules.svg)
 
 #### Job graph for local run
 
-![dag](dependency_dag.png)
+![dag](dependency_dag.svg)
