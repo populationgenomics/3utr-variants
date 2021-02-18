@@ -1,0 +1,21 @@
+name: utr-variants
+channels:
+  - conda-forge
+  - bioconda
+  - cpg
+dependencies:
+  - python=3.7
+  - pip
+  - cpg::hail=0.2.61.devc153e1f
+  - igv>=2.4
+  - snakemake=5
+  - htslib
+  - bedtools>=2.29
+  - bedops>=2.4
+  - pybedtools
+  - matplotlib
+  - seaborn
+  - genomepy
+  - pysam
+  - pip:
+    - gnomad>=0.4

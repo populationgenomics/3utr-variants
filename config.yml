@@ -1,0 +1,32 @@
+---
+output_root: data/pas_out
+bucket: gcp-utr-variants-test  # name of storage container to run in
+cluster: utr-variant-chr22  # name of dataproc cluster instance
+local: true
+genome_assembly: GRCh37
+gnomAD:
+  subset: '22:1-51304566' # end: 51304566
+  version: 2.1.1
+  gnomAD_ht: gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht
+  context_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/context/Homo_sapiens_assembly19.fasta.snps_only.vep_20181129.ht
+  #coverage_ht: gs://gcp-public-data--gnomad/release/2.1/coverage/exomes/gnomad.exomes.r2.1.coverage.ht
+  mutation_rate_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/model/mutation_rate_methylation_bins.ht
+databases:
+  APAatlas_DaPars:
+    url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
+    APA: data/annotations/APAatlas/DaPars/PDUI.txt
+    annotation: data/annotations/APAatlas/DaPars/hg19_refseq_extracted_3UTR.bed
+    chr_style: chr
+  APAatlas_SAAP-RS:
+    url: https://hanlab.uth.edu/static/download/matrix/RED.txt.zip
+    APA: data/annotations/APAatlas/SAAP-RS/RED.txt
+    annotation: data/annotations/APAatlas/SAAP-RS/RED_3UTR_annotation_hg19.txt
+    chr_style: chr
+  PolyA_DB:
+    url: https://exon.apps.wistar.org/PolyA_DB/v3/download/3.2/human_pas.zip
+    file: data/annotations/PolyA_DB3/human.PAS.txt
+    chr_style: chr
+  Gencode:
+    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh37_mapping/gencode.v36lift37.annotation.gff3.gz
+    file: data/annotations/GRCh37/gencode.v36lift37.annotation.gff3.gz
+    chr_style: chr
