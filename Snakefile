@@ -14,11 +14,7 @@ include: 'rules/extract_UTR_features.smk'
 include: 'rules/evaluation.smk'
 
 rule all:
-    input:
-        expand(
-            rules.MAPS_local.output if config['local'] else rules.MAPS_GCP.output,
-            variant_subset=variant_subsets.keys()
-        )
+    input: rules.plots.output
 
 rule dependency:
     output:

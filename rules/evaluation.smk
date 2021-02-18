@@ -74,3 +74,13 @@ rule MAPS_local:
     log: hail=str(output_root/'logs/MAPS_local_{variant_subset}_hail.log')
     threads: 10
     script: '../scripts/maps_score.py'
+
+rule plots:
+    input:
+        expand(
+            rules.MAPS_local.output if config['local'] else rules.MAPS_GCP.output,
+            variant_subset=variant_subsets.keys()
+        )
+    output:
+        maps=output_root/'plots/MAPS.png'
+    script: '../scripts/plots.py'
