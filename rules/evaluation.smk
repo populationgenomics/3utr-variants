@@ -2,6 +2,9 @@
 Evaluate different 3' UTR subsets with MAPS score
 Includes preparation of interval formats, gnomAD hail table, local & CGP runs
 """
+from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
+GS = GSRemoteProvider()
+
 
 variant_subsets = {
     'PolyADB_40nt-conserved': expand(
@@ -33,29 +36,26 @@ rule convert_bedfile:
 rule MAPS_GCP:
     input: rules.convert_bedfile.output
     output:
-        maps=output_root/'MAPS/{variant_subset}.csv'
+        maps=GS.remote(
+            f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
+            keep_local=True
+        ),
+    log: GS.remote(f'{config["bucket"]}/MAPS_{{variant_subset}}.log')
     params:
         gnomad_prepare='scripts/prepare_gnomad.py',
         maps_score='scripts/maps_score.py'
     shell:
         """
-        # TODO: manage GCP files with snakemake.remote.GS remote provider
-        OUTPUT_MAPS="gs://{config[bucket]}/MAPS_{wildcards.variant_subset}.csv"
-        LOG_GCP="gs://{config[bucket]}/MAPS_{wildcards.variant_subset}.log"
         hailctl dataproc submit {config[cluster]} \
             --files {input} \
             --pyfiles {params.gnomad_prepare},{params.maps_score} \
             scripts/maps_gcp.py  \
-                -o $OUTPUT_MAPS \
+                -o gs://{output.maps} --log gs://{log} \
                 --intervals $(basename {input}) \
                 --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
-                --genome_assembly {config[genome_assembly]} \
-                --log $LOG_GCP
-
-        echo download from gs://{config[bucket]}/${{OUTPUT_GCP}}
-        gsutil cp -r "gs://{config[bucket]}/${{OUTPUT_GCP}}" {output}
+                --genome_assembly {config[genome_assembly]}
         """
 
 rule prepare_gnomAD:
@@ -70,7 +70,7 @@ rule MAPS_local:
          intervals=rules.convert_bedfile.output,
          gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        maps=output_root/'MAPS/{variant_subset}_local.csv',
+        maps=output_root/'MAPS/{variant_subset}_local.tsv',
     log: hail=str(output_root/'logs/MAPS_local_{variant_subset}_hail.log')
     threads: 10
     script: '../scripts/maps_score.py'

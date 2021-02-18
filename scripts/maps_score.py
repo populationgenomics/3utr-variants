@@ -40,7 +40,7 @@ def downsampling_counts_expr(
     # TODO: this likely needs to be fixed for aggregations that return missing
 
     def get_criteria(i):
-        if singleton:
+        if singleton:  # pylint: disable=R1705
             return hl.int(ht.freq[i].AC == 1)
         elif impose_high_af_cutoff:
             return hl.int((ht.freq[i].AC > 0) & (ht.freq[i].AF <= 0.001))
@@ -84,7 +84,7 @@ def count_variants(
         if singleton_expression is None:
             singleton_expression = ht.freq[0].AC == 1
 
-    if count_downsamplings or force_grouping:
+    if count_downsamplings or force_grouping:  # pylint: disable=R1705
         # Slower, but more flexible (allows for downsampling agg's)
         output = {
             'variant_count': hl.agg.count_where(ht.freq[0].AF <= 0.001)
@@ -111,7 +111,7 @@ def count_variants(
                 hl.agg.filter(singleton_expression, grouping)
             )
 
-        if return_type_only:
+        if return_type_only:  # pylint: disable=R1705
             return agg['variant_count'].dtype
         else:
             return ht.aggregate(hl.struct(**agg))
@@ -119,7 +119,7 @@ def count_variants(
 
 def maps(
     ht: hl.Table,
-    mutation_ht: hl.Table,
+    mutation_ht: hl.Table,  # pylint: disable=W0621
     additional_grouping=None,  # change from mutable default to None
     singleton_expression: hl.expr.BooleanExpression = None,
     skip_worst_csq: bool = False,
@@ -216,6 +216,7 @@ if __name__ == '__main__':
 
     print('MAPS score')
     maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
+    maps_ht.show()
 
     print('save...')
-    maps_ht.to_pandas().to_csv(maps_out, index=False)
+    maps_ht.export(maps_out)

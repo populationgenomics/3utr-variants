@@ -90,7 +90,8 @@ if __name__ == '__main__':
 
     print('MAPS score')
     maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
+    maps_ht.show()
 
     print('save...')
-    maps_ht.to_pandas().to_csv(args.output, index=False)
+    maps_ht.export(args.output)
     hl.copy_log(args.log)
