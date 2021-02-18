@@ -6,9 +6,7 @@ Plots comparing all variant subsets
 import pandas as pd
 from plotnine import *  # pylint: disable=W0614,W0401
 
-
-df_list = [pd.read_csv(f.__str__()) for f in snakemake.input]
-df = pd.concat(df_list)
+df = pd.read_csv(snakemake.input[0], sep='\t')
 
 maps_plot = (
     ggplot(df)

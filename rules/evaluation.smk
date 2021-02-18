@@ -75,12 +75,30 @@ rule MAPS_local:
     threads: 10
     script: '../scripts/maps_score.py'
 
+
+def maps_files(wildcards):
+    subsets = variant_subsets.keys()
+    if wildcards.run_location == 'local':
+        return expand(rules.MAPS_local.output.maps, variant_subset=subsets)
+    return GS.remote(expand(rules.MAPS_GCP.output.maps.__str__(), variant_subset=subsets))
+
+
+rule gather_MAPS:
+    input: maps_files
+    output: output_root / 'MAPS/all_{run_location}.tsv'
+    run:
+        import pandas as pd
+
+        df_list = []
+        for variant_subset, file in zip(variant_subsets.keys(), input):
+            df = pd.read_table(file.__str__(), sep='\t')
+            df['variant_subset'] = variant_subset
+            df_list.append(df)
+        df_all = pd.concat(df_list)
+        df_all.to_csv(output[0], index=False, sep='\t')
+
 rule plots:
-    input:
-        expand(
-            rules.MAPS_local.output if config['local'] else rules.MAPS_GCP.output,
-            variant_subset=variant_subsets.keys()
-        )
+    input: rules.gather_MAPS.output
     output:
-        maps=output_root/'plots/MAPS.png'
+          maps=output_root / 'plots/MAPS_{run_location}.png'
     script: '../scripts/plots.py'

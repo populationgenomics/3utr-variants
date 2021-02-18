@@ -14,7 +14,11 @@ include: 'rules/extract_UTR_features.smk'
 include: 'rules/evaluation.smk'
 
 rule all:
-    input: rules.plots.output
+    input:
+        expand(
+             rules.plots.output,
+             run_location='local' if config['local'] else 'gcp'
+         )
 
 rule dependency:
     output:
