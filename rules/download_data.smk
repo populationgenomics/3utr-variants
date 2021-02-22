@@ -5,10 +5,10 @@ Download genome sequence reference, gene and 3'UTR annotation files
 rule genomepy:
     output:
         protected(
-            multiext(str(output_root/"reference/{assembly}/{assembly}"),
-                 ".fa", ".fa.fai", ".fa.sizes", ".annotation.gtf.gz", ".annotation.bed.gz")
+            multiext(str(output_root / "reference/{assembly}/{assembly}"),
+                ".fa",".fa.fai",".fa.sizes",".annotation.gtf.gz",".annotation.bed.gz")
         )
-    log: str(output_root/"logs/genomepy_{assembly}.log")
+    log: str(output_root / "logs/genomepy_{assembly}.log")
     params:
         provider="UCSC"  # optional, defaults to ucsc. Choose from ucsc, ensembl, and ncbi
     cache: True  # mark as eligible for between workflow caching
@@ -23,10 +23,10 @@ rule genomepy:
         """
 
 rule get_fasta:
-    input: expand(rules.genomepy.output, assembly=config['assembly_ucsc'])
+    input: expand(rules.genomepy.output,assembly=config['assembly_ucsc'])
 
 rule download_PolyA_DB:
-    output: output_root/'annotations/PolyA_DB3/human.PAS.txt'
+    output: output_root / 'annotations/PolyA_DB3/human.PAS.txt'
     params:
         url=config['databases']['PolyA_DB']['url']
     shell:
@@ -38,7 +38,7 @@ rule download_PolyA_DB:
         """
 
 rule download_Gencode:
-    output: output_root/'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
+    output: output_root / 'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
     params:
         url=config['databases']['Gencode']['url']
     shell:
