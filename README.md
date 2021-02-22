@@ -90,16 +90,16 @@ It is useful to get a visual representation of what will be computed.
 For that, you can call the `dependency` rule that creates graphs for the dependency between rules (more general) and jobs (specific to wildcards).
 
 ```commandline
-snakemake dependency -Fn
+snakemake dependency -Fj
 ```
 
 The output files can be found in the `output_root` directory specified in `config.yml`.
 Below are some examples of a local run.
 
-#### Rule graph for local run
+#### Rule graph for GCP run
 
 ![rulegraph](dependency_rules.svg)
 
-#### Job graph for local run
+#### Job graph for GCP run
 
 ![dag](dependency_dag.svg)
