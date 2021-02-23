@@ -26,9 +26,9 @@ rule extract_PolyA_DB:
             expand(rules.genomepy.output[0],assembly=config['assembly_ucsc'])
         )
     output:
-        PAS=interval_out_dir / 'PolyA_DB/PAS-{filter}.bed',
-        PAS_context_40nt=interval_out_dir / 'PolyA_DB/context_40nt-{filter}.bed',
-        PAS_context_100nt=interval_out_dir / 'PolyA_DB/context_100nt-{filter}.bed',
-        PAS_hexamers=interval_out_dir / 'PolyA_DB/hexamers-{filter}.bed',
-        stats=interval_out_dir / 'PolyA_DB/stats-{filter}.txt'
+        PAS=interval_out_dir / 'PolyA_DB/PAS.bed',
+        PAS_context_40nt=interval_out_dir / 'PolyA_DB/context_40nt.bed',
+        PAS_context_100nt=interval_out_dir / 'PolyA_DB/context_100nt.bed',
+        PAS_hexamers=interval_out_dir / 'PolyA_DB/hexamers.bed',
+        stats=interval_out_dir / 'PolyA_DB/stats.txt'
     script: '../scripts/extract_polyadb.py'

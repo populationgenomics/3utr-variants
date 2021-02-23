@@ -8,23 +8,10 @@ GS = GSRemoteProvider()
 
 # wildcards for feature extraction rules
 variant_subsets = {
-    'PolyADB_40nt-conserved': expand(
-        rules.extract_PolyA_DB.output.PAS_context_40nt,
-        filter='conserved'
-    ),
-    'PolyADB_100nt-conserved': expand(
-        rules.extract_PolyA_DB.output.PAS_context_100nt,
-        filter='conserved'
-    ),
-    #'PolyADB_hexamers-conserved': expand(
-    #    rules.extract_PolyA_DB.output.PAS_hexamers,
-    #    filter='conserved'
-    #),
-    'PolyADB_hexamers-all': expand(
-        rules.extract_PolyA_DB.output.PAS_hexamers,
-        filter='all'
-    ),
-    'Gencode_UTR': rules.extract_Gencode_UTR.output.utr
+    'PolyA_DB/40nt-conserved': rules.extract_PolyA_DB.output.PAS_context_40nt,
+    'PolyA_DB/100nt-conserved': rules.extract_PolyA_DB.output.PAS_context_100nt,
+    'PolyA_DB/hexamers': rules.extract_PolyA_DB.output.PAS_hexamers,
+    'Gencode/UTR': rules.extract_Gencode_UTR.output.utr
 }
 
 
