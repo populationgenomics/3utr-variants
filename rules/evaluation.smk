@@ -34,8 +34,8 @@ rule MAPS_GCP:
         ),
     log: GS.remote(f'{config["bucket"]}/MAPS_{{variant_subset}}.log')
     params:
-        gnomad_prepare='scripts/prepare_gnomad.py',
-        maps_score='scripts/maps_score.py'
+        gnomad_prepare='utr3variants/annotate_gnomad.py',
+        maps_score='utr3variants/maps.py'
     shell:
         """
         hailctl dataproc submit {config[cluster]} \
