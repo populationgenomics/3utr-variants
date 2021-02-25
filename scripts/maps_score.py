@@ -9,6 +9,7 @@ Compute MAPS score on local gnomAD hail table annotated in scripts/prepare_gnoma
         MAPS hail table directory
 """
 import hail as hl
+from utr3variants.annotate_gnomad import annotate_by_intervals
 from utr3variants.maps import maps
 
 
@@ -25,20 +26,14 @@ if __name__ == '__main__':
         default_reference=ref,
     )
 
-    # intervals = hl.import_bed(bed_file, reference_genome=reference_genome')
-    with open(interval_file, 'r') as f:
-        intervals = f.readlines()
-    intervals = [hl.parse_locus_interval(x, reference_genome=ref) for x in intervals]
-
+    intervals = hl.import_bed(interval_file, reference_genome=ref)
     mutation_ht = hl.read_table(mutation_path)
-    snp_ht = hl.read_table(gnomad_path)
-
-    print('filter intervals')
-    snp_ht = hl.filter_intervals(snp_ht, intervals)
-    # snp_ht = snp_ht.filter(hl.is_defined(intervals[snp_ht.locus]))
+    ht = hl.read_table(gnomad_path)
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
+    print(ht.show())
 
     print('MAPS score')
-    maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
+    maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])
     maps_ht.show()
 
     print('save...')

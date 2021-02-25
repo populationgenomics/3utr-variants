@@ -1,14 +1,14 @@
 """
 Annotation functions for gnomAD hail table
 """
-from typing import Union, Any
+from typing import Union
 import gnomad.utils.vep
 import hail as hl
 
 
 def annotate_by_intervals(
     ht, intervals_ht, annotation_column='target', new_column=None
-):
+) -> hl.Table:
     """
     Annotate a locus-keyed hail table by interval-level annotation
 
@@ -28,7 +28,6 @@ def annotate_by_intervals(
     # build annotation expression
     expr = hl.case()
     for value in anno_values:
-        print(value)
         interval_sub = intervals_ht.filter(intervals_ht[annotation_column] == value)
         expr = expr.when(hl.is_defined(interval_sub[ht.locus]), value)
     expr = expr.default('na')
@@ -36,16 +35,15 @@ def annotate_by_intervals(
     return ht.annotate(**{new_column: expr})
 
 
-def filter_gnomad(ht: hl.Table, intervals: Any = None, verbose: bool = True):
+def filter_gnomad(ht: hl.Table, intervals: hl.Table, verbose: bool = True) -> hl.Table:
     """
     Annotate gnomAD hail table with necessary
 
     :params ht: gnomAD hail table to be annotated
-    :params intervals: list of hl.IntervalExpression objects (optional)
+    :params intervals: hail table of intervals
     :params verbose: whether to print a message after filtering
     """
-    if intervals is not None:
-        ht = hl.filter_intervals(ht, intervals)
+    ht = ht.filter(hl.is_defined(intervals[ht.locus]))
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     if verbose:
@@ -53,7 +51,7 @@ def filter_gnomad(ht: hl.Table, intervals: Any = None, verbose: bool = True):
     return ht
 
 
-def annotate_for_maps(ht, context_ht):
+def annotate_for_maps(ht, context_ht) -> hl.Table:
     """
     Include annotations for MAPS analogue to
     https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
