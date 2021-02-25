@@ -31,4 +31,6 @@ rule extract_PolyA_DB:
         PAS_context_100nt=interval_out_dir / 'PolyA_DB/100nt.bed',
         PAS_hexamers=interval_out_dir / 'PolyA_DB/hexamers.bed',
         stats=interval_out_dir / 'PolyA_DB/stats.txt'
+    params:
+        chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr'
     script: '../scripts/extract_polyadb.py'
