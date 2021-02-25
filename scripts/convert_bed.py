@@ -37,7 +37,9 @@ if __name__ == '__main__':
         gnomAD_subset_interval = pybedtools.BedTool(
             gnomAD_subset.replace(':', ' ').replace('-', ' '), from_string=True
         )
-        bed_intervals = bed_intervals.intersect(gnomAD_subset_interval)
+        bed_intervals = bed_intervals.intersect(  # pylint: disable=E1121
+            gnomAD_subset_interval
+        )
         print(f'{len(bed_intervals)} bed intervals after subset')
 
     # convert to hail parsable string

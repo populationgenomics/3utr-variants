@@ -25,9 +25,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Compute MAPS score')
-    parser.add_argument(
-        '-o', '--output', required=True, help='Directory for MAPS hail table'
-    )
+    parser.add_argument('-o', '--output', required=True, help='Output TSV file')
     parser.add_argument(
         '--intervals', required=True, help='Interval text file for subsetting gnomAD'
     )
@@ -51,6 +49,11 @@ if __name__ == '__main__':
         required=True,
         help='Genome assembly identifier e.g. GRCh37',
     )
+    parser.add_argument(
+        '--log',
+        required=True,
+        help='GCP link for log output in bucket',
+    )
     args = parser.parse_args()
 
     hl.init(default_reference=args.genome_assembly)
@@ -58,17 +61,20 @@ if __name__ == '__main__':
     # intervals = hl.import_bed(bed_file, reference_genome=reference_genome')
     with open(args.intervals, 'r') as f:
         intervals = f.readlines()
-    # snp_ht = snp_ht.filter(hl.is_defined(intervals[snp_ht.locus]))
+    intervals = [
+        hl.parse_locus_interval(x, reference_genome=args.genome_assembly)
+        for x in intervals
+    ]
 
     mutation_ht = hl.read_table(args.mutation_ht)
 
     # subset context table
     context_ht = hl.read_table(args.context_ht)
-    context_ht = hl.filter_intervals(context_ht, [intervals])
+    context_ht = hl.filter_intervals(context_ht, intervals)
 
     # prepare gnomAD table
     ht = hl.read_table(args.gnomAD_ht)
-    ht = hl.filter_intervals(ht, [intervals])
+    ht = hl.filter_intervals(ht, intervals)
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     print(f'entries in gnomAD after filtering: {ht.count()}')
@@ -82,6 +88,8 @@ if __name__ == '__main__':
 
     print('MAPS score')
     maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
+    maps_ht.show()
 
     print('save...')
-    maps_ht.write(args.output)
+    maps_ht.export(args.output)
+    hl.copy_log(args.log)

@@ -17,5 +17,6 @@ dependencies:
   - seaborn
   - genomepy
   - pysam
+  - plotnine
   - pip:
     - gnomad>=0.4

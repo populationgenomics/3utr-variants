@@ -1,6 +1,6 @@
 ---
 output_root: data/pas_out
-bucket: gcp-utr-variants-test  # name of storage container to run in
+bucket: cpg-utr-variants-test  # name of storage container to run in
 cluster: utr-variant-chr22  # name of dataproc cluster instance
 local: true
 genome_assembly: GRCh37
