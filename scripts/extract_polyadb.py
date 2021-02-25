@@ -15,8 +15,6 @@ import pandas as pd
 import pybedtools
 from pysam import FastaFile  # pylint: disable=no-name-in-module
 
-from utr3variants.utils import convert_chr_style
-
 
 def create_signal_interval(
     feature: pybedtools.Interval, signal: str, sequence: str, name: str = None
@@ -54,11 +52,12 @@ def get_hexamers(
     """
     Retrieve all hexamers of regions from within given interval
 
-    :param feature: interval with interval.name containing annotation <PAS signal>|<conservation>
+    :param feature: interval with interval.name containing annotation
+        of form <PAS signal>|<conservation>
     :param sequence: sequence of feature interval
     :return: list of hexamer coordinates
     """
-    signal_type, conservation = feature.name.split('|')
+    signal_type, conservation = feature.name.split('|')  # pylint: disable=W0612
 
     if signal_type == 'NoPAS':
         return []
@@ -131,14 +130,6 @@ if __name__ == '__main__':
     with open(output.stats, 'w') as f:
         f.write(f'pA sites: {len(bed)}\n')
         f.write(f'hexamers: {len(hexamers_bed)}\n')
-
-    # convert chromosome format to match gnomAD dataset
-    print('convert chromosome style')
-    chr_style = snakemake.params['chr_style_gnomAD']
-    bed = bed.each(convert_chr_style, chr_style)
-    bed_40nt = bed_40nt.each(convert_chr_style, chr_style)
-    bed_100nt = bed_100nt.each(convert_chr_style, chr_style)
-    hexamers_bed = hexamers_bed.each(convert_chr_style, chr_style)
 
     print('save...')
     bed.saveas(output.PAS)

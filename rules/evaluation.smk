@@ -15,18 +15,9 @@ variant_subsets = {
 }
 
 
-rule convert_bedfile:
-    # Convert BED file format to hail parsable strings
-    input: lambda wildcards: variant_subsets[wildcards.variant_subset]
-    output: output_root / 'intervals/{variant_subset}_hail.txt'
-    params:
-        chr_style_hail='' if config['genome_assembly'] == 'GRCh37' else 'chr'
-    script: '../scripts/convert_bed.py'
-
-
 rule MAPS_GCP:
     # Compute MAPS on Google Cloud
-    input: rules.convert_bedfile.output
+    input: rules.merge_UTR_intervals.output
     output:
         maps=GS.remote(
             f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
@@ -63,7 +54,7 @@ rule prepare_gnomAD:
 rule MAPS_local:
     # Compute MAPS locally
     input:
-        intervals=rules.convert_bedfile.output,
+        intervals=rules.merge_UTR_intervals.output,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
         maps=output_root / 'MAPS/{variant_subset}_local.tsv',

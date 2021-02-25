@@ -31,6 +31,16 @@ rule extract_PolyA_DB:
         PAS_context_100nt=interval_out_dir / 'PolyA_DB/100nt.bed',
         PAS_hexamers=interval_out_dir / 'PolyA_DB/hexamers.bed',
         stats=interval_out_dir / 'PolyA_DB/stats.txt'
+    script: '../scripts/extract_polyadb.py'
+
+
+rule merge_UTR_intervals:
+    input:
+        utrs=rules.extract_Gencode_UTR.output.utr,
+        hexamers=rules.extract_PolyA_DB.output.PAS_hexamers,
+        pas=rules.extract_PolyA_DB.output.PAS
+    output:
+        intervals=interval_out_dir / 'merged_UTR_intervals.bed'
     params:
         chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr'
-    script: '../scripts/extract_polyadb.py'
+    script: '../scripts/merge_utr_intervals.py'
