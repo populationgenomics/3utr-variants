@@ -25,9 +25,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Compute MAPS score')
-    parser.add_argument(
-        '-o', '--output', required=True, help='Csv file for pandas dataframe with MAPS'
-    )
+    parser.add_argument('-o', '--output', required=True, help='Output TSV file')
     parser.add_argument(
         '--intervals', required=True, help='Interval text file for subsetting gnomAD'
     )

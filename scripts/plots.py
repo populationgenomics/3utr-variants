@@ -1,5 +1,7 @@
 """
 Plots comparing all variant subsets
+    Input: TSV file containing MAPS scores
+    Output: Plot of MAPS for all variant subsets
 """
 # flake8: noqa
 
