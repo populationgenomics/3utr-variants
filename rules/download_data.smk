@@ -2,7 +2,9 @@
 Download genome sequence reference, gene and 3'UTR annotation files
 """
 
+
 rule genomepy:
+    # Download reference sequence using genomepy
     output:
         protected(
             multiext(str(output_root / "reference/{assembly}/{assembly}"),
@@ -22,10 +24,14 @@ rule genomepy:
             -g $genome_dir >> {log} 2>&1
         """
 
+
 rule get_fasta:
+    # Request fasta file for genome assembly specified in config
     input: expand(rules.genomepy.output,assembly=config['assembly_ucsc'])
 
+
 rule download_PolyA_DB:
+    # Download and extract PolyA_DB3 annotation
     output: output_root / 'annotations/PolyA_DB3/human.PAS.txt'
     params:
         url=config['databases']['PolyA_DB']['url']
@@ -37,7 +43,9 @@ rule download_PolyA_DB:
         unzip "$tmpdir"/human_pas.zip -d $(dirname {output})
         """
 
+
 rule download_Gencode:
+    # Download GENCODE gene annotation
     output: output_root / 'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
     params:
         url=config['databases']['Gencode']['url']

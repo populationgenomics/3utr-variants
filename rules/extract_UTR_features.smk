@@ -4,7 +4,9 @@ Extract UTR features from different annotations
 
 interval_out_dir = output_root / 'intervals'
 
+
 rule extract_Gencode_UTR:
+    # Extract annotated 3'UTR regions from GENCODE gene annotation
     input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
     output:
         utr=interval_out_dir / 'Gencode/3UTR.bed',
@@ -17,6 +19,7 @@ rule extract_Gencode_UTR:
 
 
 rule extract_PolyA_DB:
+    # Extract PAS positions, surrounding regions and hexamers
     input:
         db=rules.download_PolyA_DB.output,# config["databases"]["PolyA_DB"]["file"],
         fasta=ancient(

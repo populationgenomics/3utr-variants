@@ -6,6 +6,7 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 
 GS = GSRemoteProvider()
 
+# wildcards for feature extraction rules
 variant_subsets = {
     'PolyADB_40nt-conserved': expand(
         rules.extract_PolyA_DB.output.PAS_context_40nt,
@@ -26,14 +27,18 @@ variant_subsets = {
     'Gencode_UTR': rules.extract_Gencode_UTR.output.utr
 }
 
+
 rule convert_bedfile:
+    # Convert BED file format to hail parsable strings
     input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output: output_root / 'intervals/{variant_subset}_hail.txt'
     params:
         chr_style_hail='' if config['genome_assembly'] == 'GRCh37' else 'chr'
     script: '../scripts/convert_bed.py'
 
+
 rule MAPS_GCP:
+    # Compute MAPS on Google Cloud
     input: rules.convert_bedfile.output
     output:
         maps=GS.remote(
@@ -58,14 +63,18 @@ rule MAPS_GCP:
                 --genome_assembly {config[genome_assembly]}
         """
 
+
 rule prepare_gnomAD:
+    # Prepare gnomAD hail table (for local run)
     threads: 10
     output:
         gnomAD_ht=directory(output_root / 'gnomAD.ht')
     log: hail=str(output_root / 'logs/prepare_gnomAD_hail.log')
     script: '../scripts/prepare_gnomad.py'
 
+
 rule MAPS_local:
+    # Compute MAPS locally
     input:
         intervals=rules.convert_bedfile.output,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
@@ -77,6 +86,10 @@ rule MAPS_local:
 
 
 def maps_files(wildcards):
+    """
+    Collect all MAPS files based on wildcards defined in variant_subsets
+    Handles local or remote files (depending on config)
+    """
     subsets = variant_subsets.keys()
     if wildcards.run_location == 'local':
         return expand(rules.MAPS_local.output.maps,variant_subset=subsets)
@@ -84,6 +97,7 @@ def maps_files(wildcards):
 
 
 rule gather_MAPS:
+    # Merge different MAPS results into single table
     input: maps_files
     output: output_root / 'MAPS/all_{run_location}.tsv'
     run:
@@ -97,7 +111,9 @@ rule gather_MAPS:
         df_all = pd.concat(df_list)
         df_all.to_csv(output[0],index=False,sep='\t')
 
+
 rule plots:
+    # Plot all MAPS results in single plot
     input: rules.gather_MAPS.output
     output:
         maps=output_root / 'plots/MAPS_{run_location}.png'
