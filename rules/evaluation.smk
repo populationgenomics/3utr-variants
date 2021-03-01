@@ -8,7 +8,18 @@ GS = GSRemoteProvider()
 
 # wildcards for feature extraction rules
 variant_subsets = {
-    'PolyA_DB': rules.merge_UTR_intervals.output.intervals
+    'PolyADB-variant': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='variant'
+    ),
+    'PolyADB-hexamer': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='hexamer'
+    ),
+    'PolyADB-conserved': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='conserved'
+    )
     #'PolyA_DB/40nt': rules.extract_PolyA_DB.output.PAS_context_40nt,
     #'PolyA_DB/100nt': rules.extract_PolyA_DB.output.PAS_context_100nt,
     #'PolyA_DB/hexamers': rules.extract_PolyA_DB.output.PAS_hexamers,
@@ -18,7 +29,7 @@ variant_subsets = {
 
 rule MAPS_GCP:
     # Compute MAPS on Google Cloud
-    input: rules.merge_UTR_intervals.output
+    input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output:
         maps=GS.remote(
             f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
@@ -55,7 +66,7 @@ rule prepare_gnomAD:
 rule MAPS_local:
     # Compute MAPS locally
     input:
-        intervals=rules.merge_UTR_intervals.output,
+        intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
         maps=output_root / 'MAPS/{variant_subset}_local.tsv',
