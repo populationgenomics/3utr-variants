@@ -13,7 +13,8 @@ rule extract_Gencode_UTR:
         #pas=interval_out_dir / 'Gencode/PAS.bed'
     shell:
         """
-        zcat {input} | grep three_prime_UTR | gff2bed > {output.utr}
+        zcat {input} | grep three_prime_UTR | sortBed |\
+         mergeBed -c 3,6,7 -o distinct,distinct,distinct > {output.utr}
         # TODO: determine 3UTR start depending on strand
         """
 
@@ -36,7 +37,7 @@ rule extract_PolyA_DB:
 
 rule merge_UTR_intervals:
     input:
-        utrs=rules.extract_Gencode_UTR.output.utr,
+        utrs=rules.extract_Gencode_UTR.output.utr,  # TODO: use PolyADB UTR intervals
         hexamers=rules.extract_PolyA_DB.output.PAS_hexamers,
         pas=rules.extract_PolyA_DB.output.PAS
     output:
