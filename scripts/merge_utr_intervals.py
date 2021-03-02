@@ -6,7 +6,7 @@ import pybedtools
 from utr3variants.utils import convert_chr_style
 
 # map annotation to column in |-separated annotation entry
-ANNOTATION_MAP = {'variant': -1, 'hexamer': 0, 'conserved': 1}
+ANNOTATION_MAP = {'overall': -1, 'hexamer': 0, 'conserved': 1}
 
 
 def rename_interval(
