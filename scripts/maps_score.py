@@ -29,8 +29,9 @@ if __name__ == '__main__':
     intervals = hl.import_bed(interval_file, reference_genome=ref)
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
-    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
-    print(ht.show())
+
+    print('Annotate by intervals')
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group', repartition=False)
 
     print('MAPS score')
     maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])

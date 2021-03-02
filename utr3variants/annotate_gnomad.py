@@ -7,7 +7,7 @@ import hail as hl
 
 
 def annotate_by_intervals(
-    ht, intervals_ht, annotation_column='target', new_column=None
+    ht, intervals_ht, annotation_column='target', new_column=None, repartition=False
 ) -> hl.Table:
     """
     Annotate a locus-keyed hail table by interval-level annotation
@@ -16,11 +16,26 @@ def annotate_by_intervals(
     :param intervals_ht: hail table with annotation on interval-basis
     :param annotation_column: name of annotation column from intervals_ht
         default: 'target' annotation column of imported UCSC BED hail table
+    :param new_column: name of new annotation column, if None, use annotation_column
+    :param repartition: whether to repartition the annotated hail table after
+        filtering, can make future computations more efficient.
+        New number of partitions is derived by:
+            new_rows/new_partitions = old_rows/old_partitions
+            => new_partitions = old_partitions * (new_rows/old_rows)
     """
     if new_column is None:
         new_column = annotation_column
 
+    old_rows = ht.count()
     ht = ht.filter(hl.is_defined(intervals_ht[ht.locus]))
+
+    if repartition:
+        print('Repartition')
+        new_rows = ht.count()
+        old_partitions = ht.n_partitions()
+        new_partitions = int(old_partitions * (new_rows / old_rows))
+        ht = ht.repartition(new_partitions)
+
     anno_values = intervals_ht.aggregate(
         hl.agg.collect_as_set(intervals_ht[annotation_column])
     )
@@ -32,7 +47,7 @@ def annotate_by_intervals(
         expr = expr.when(hl.is_defined(interval_sub[ht.locus]), value)
     expr = expr.default('na')
 
-    return ht.annotate(**{new_column: expr})
+    return ht.annotate(**{new_column: expr}).order_by(new_column)
 
 
 def filter_gnomad(ht: hl.Table, intervals: hl.Table, verbose: bool = True) -> hl.Table:
