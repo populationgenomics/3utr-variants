@@ -21,7 +21,7 @@ if __name__ == '__main__':
     ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
 
     subset_interval = hl.parse_locus_interval(snakemake.config['gnomAD']['subset'])
-    ht = filter_gnomad(hl.filter_intervals(ht, [subset_interval]))
+    ht = filter_gnomad(ht, [subset_interval])
     ht = annotate_for_maps(ht, context_ht)
 
     print('save...')

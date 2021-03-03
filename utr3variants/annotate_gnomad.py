@@ -1,7 +1,7 @@
 """
 Annotation functions for gnomAD hail table
 """
-from typing import Union
+from typing import Union, Any
 import gnomad.utils.vep
 import hail as hl
 
@@ -50,15 +50,19 @@ def annotate_by_intervals(
     return ht.annotate(**{new_column: expr}).order_by(new_column)
 
 
-def filter_gnomad(ht: hl.Table, intervals: hl.Table, verbose: bool = True) -> hl.Table:
+def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Table:
     """
     Annotate gnomAD hail table with necessary
 
     :params ht: gnomAD hail table to be annotated
-    :params intervals: hail table of intervals
+    :params intervals: intervals to filter by as hl.Table or list of
+        hl.IntervalExpression
     :params verbose: whether to print a message after filtering
     """
-    ht = ht.filter(hl.is_defined(intervals[ht.locus]))
+    if isinstance(intervals, hl.Table):
+        ht = ht.filter(hl.is_defined(intervals[ht.locus]))
+    elif all(isinstance(x, hl.IntervalExpression) for x in intervals):
+        ht = ht.filter_intervals(intervals)
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     if verbose:
