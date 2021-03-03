@@ -15,6 +15,7 @@ include: 'rules/evaluation.smk'
 
 rule all:
     input:
+        expand(rules.gather_plot_single.input, run_location='local'),
         expand(
              rules.plots.output,
              run_location='local' if config['local'] else 'gcp'

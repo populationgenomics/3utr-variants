@@ -98,9 +98,24 @@ rule gather_MAPS:
         df_all.to_csv(output[0],index=False,sep='\t')
 
 
+rule plot_single:
+    input: rules.MAPS_local.output.maps
+    output:
+        maps=output_root / 'plots/{run_location}/MAPS_{variant_subset}.png'
+    script: '../scripts/plots_single.py'
+
+rule gather_plot_single:
+    input:
+        expand(
+            rules.plot_single.output,
+            variant_subset=variant_subsets.keys(),
+            allow_missing=True
+        )
+
 rule plots:
     # Plot all MAPS results in single plot
-    input: rules.gather_MAPS.output
+    input:
+        maps=rules.gather_MAPS.output
     output:
         maps=output_root / 'plots/MAPS_{run_location}.png'
     script: '../scripts/plots.py'

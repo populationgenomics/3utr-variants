@@ -8,7 +8,7 @@ Plots comparing all variant subsets
 import pandas as pd
 from plotnine import *  # pylint: disable=W0614,W0401
 
-df = pd.read_csv(snakemake.input[0], sep='\t')
+df = pd.read_table(snakemake.input[0], sep='\t')
 
 df = df[df.worst_csq == '3_prime_UTR_variant']
 df[['interval_set', 'annotation']] = df['UTR_group'].str.split('|', expand=True)
