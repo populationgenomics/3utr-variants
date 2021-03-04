@@ -17,7 +17,8 @@ See rules/evaluation.smk for a generic hailctl command.
 
 import hail as hl
 
-from annotate_gnomad import filter_gnomad, annotate_for_maps  # pylint: disable=E0401
+# pylint: disable=E0401
+from annotate_gnomad import filter_gnomad, annotate_for_maps, annotate_by_intervals
 from maps import maps  # pylint: disable=E0401
 
 
@@ -50,6 +51,11 @@ if __name__ == '__main__':
         help='Genome assembly identifier e.g. GRCh37',
     )
     parser.add_argument(
+        '--chr_subset',
+        required=True,
+        help='Chromosome region to subset variants to',
+    )
+    parser.add_argument(
         '--log',
         required=True,
         help='GCP link for log output in bucket',
@@ -58,25 +64,21 @@ if __name__ == '__main__':
 
     hl.init(default_reference=args.genome_assembly)
 
-    # TODO: include annotation
-    # intervals = hl.import_bed(bed_file, reference_genome=reference_genome')
-    with open(args.intervals, 'r') as f:
-        intervals = f.readlines()
-    intervals = [
-        hl.parse_locus_interval(x, reference_genome=args.genome_assembly)
-        for x in intervals
-    ]
-
+    intervals = hl.import_bed(args.intervals)
     mutation_ht = hl.read_table(args.mutation_ht)
     context_ht = hl.read_table(args.context_ht)
-
     ht = hl.read_table(args.gnomAD_ht)
-    ht = filter_gnomad(ht, intervals)
+
+    print('Filter')
+    subset_interval = hl.parse_locus_interval(args.chr_subset)
+    ht = filter_gnomad(ht, [subset_interval])
+
+    print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group', repartition=True)
 
     print('MAPS score')
-    # TODO: use different grouping
-    maps_ht = maps(ht, mutation_ht, additional_grouping=['protein_coding'])
+    maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])
     maps_ht.show()
 
     print('save...')

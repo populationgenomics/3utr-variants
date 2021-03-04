@@ -37,16 +37,19 @@ rule MAPS_GCP:
         maps_score='utr3variants/maps.py'
     shell:
         """
+        INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
+        gsutil cp {input} $INTERVAL_PATH
         hailctl dataproc submit {config[cluster]} \
-            --files {input} \
             --pyfiles {params.gnomad_prepare},{params.maps_score} \
             scripts/maps_gcp.py  \
                 -o gs://{output.maps} --log gs://{log} \
-                --intervals $(basename {input}) \
+                --intervals $INTERVAL_PATH \
                 --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
-                --genome_assembly {config[genome_assembly]}
+                --genome_assembly {config[genome_assembly]} \
+                --chr_subset {config[gnomAD][subset]}
+        gsutil rm $INTERVAL_PATH
         """
 
 

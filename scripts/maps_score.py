@@ -26,7 +26,7 @@ if __name__ == '__main__':
         default_reference=ref,
     )
 
-    intervals = hl.import_bed(interval_file, reference_genome=ref)
+    intervals = hl.import_bed(interval_file)
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
 

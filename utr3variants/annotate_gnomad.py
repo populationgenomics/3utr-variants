@@ -62,7 +62,7 @@ def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Tabl
     if isinstance(intervals, hl.Table):
         ht = ht.filter(hl.is_defined(intervals[ht.locus]))
     elif all(isinstance(x, hl.IntervalExpression) for x in intervals):
-        ht = ht.filter_intervals(intervals)
+        ht = hl.filter_intervals(ht, intervals)
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     if verbose:
