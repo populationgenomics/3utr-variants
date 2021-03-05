@@ -68,26 +68,35 @@ rule MAPS_local:
         intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        maps=output_root / 'MAPS/{variant_subset}_local.tsv',
+        maps=output_root / 'MAPS/local/{variant_subset}.tsv',
     log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail.log')
     threads: 10
     script: '../scripts/maps_score.py'
 
 
-def maps_files(wildcards):
+def maps_file(wildcards):
     """
-    Collect all MAPS files based on wildcards defined in variant_subsets
+    Get MAPS file based on wildcards defined in variant_subsets
     Handles local or remote files (depending on config)
+    """
+    return rules.MAPS_local.output.maps \
+        if wildcards.run_location == 'local' \
+        else rules.MAPS_GCP.output.maps
+
+
+def gather_files(wildcards, target, **kwargs):
+    """
+    Expand target expression, depending on wildcards.run_location
     """
     subsets = variant_subsets.keys()
     if wildcards.run_location == 'local':
-        return expand(rules.MAPS_local.output.maps,variant_subset=subsets)
-    return GS.remote(expand(rules.MAPS_GCP.output.maps.__str__(),variant_subset=subsets))
+        return expand(target,**kwargs)
+    return GS.remote(expand(target.__str__(),**kwargs))
 
 
 rule gather_MAPS:
     # Merge different MAPS results into single table
-    input: maps_files
+    input: lambda w: gather_files(w,maps_file(w),variant_subset=variant_subsets.keys())
     output: output_root / 'MAPS/all_{run_location}.tsv'
     run:
         import pandas as pd
@@ -102,7 +111,7 @@ rule gather_MAPS:
 
 
 rule plot_single:
-    input: rules.MAPS_local.output.maps
+    input: maps_file
     output:
         maps=output_root / 'plots/{run_location}/MAPS_{variant_subset}.png'
     script: '../scripts/plots_single.py'
