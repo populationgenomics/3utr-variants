@@ -27,7 +27,6 @@ def annotate_by_intervals(
         new_column = annotation_column
 
     old_rows = ht.count()
-    ht = ht.filter(hl.is_defined(intervals_ht[ht.locus]))
 
     if repartition:
         print('Repartition')
@@ -45,7 +44,7 @@ def annotate_by_intervals(
     for value in anno_values:
         interval_sub = intervals_ht.filter(intervals_ht[annotation_column] == value)
         expr = expr.when(hl.is_defined(interval_sub[ht.locus]), value)
-    expr = expr.default('na')
+    expr = expr.default('other_variant')
 
     return ht.annotate(**{new_column: expr}).order_by(new_column)
 
