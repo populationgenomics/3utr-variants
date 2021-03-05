@@ -11,7 +11,7 @@ from plotnine import *  # pylint: disable=W0614,W0401
 df = pd.read_table(snakemake.input[0], sep='\t')
 
 df['UTR_group'] = df['UTR_group'] + '|'
-df[['interval_set', 'annotation']] = df['UTR_group'].str.split('|', expand=True)[[0,1]]
+df[['interval_set', 'annotation']] = df['UTR_group'].str.split('|', expand=True)[[0, 1]]
 
 chr_subset = snakemake.config['gnomAD']['subset']
 title = f'{chr_subset} - {snakemake.wildcards.variant_subset}'
@@ -26,11 +26,7 @@ maps_plot = (
         width=0.1,
         position=point_position,
     )
-    + geom_text(
-        aes(label='variant_count'),
-        size=12,
-        position=point_position
-    )
+    + geom_text(aes(label='variant_count'), size=12, position=point_position)
     + geom_hline(yintercept=0, color='grey')
     + facet_grid('interval_set~.')
     + ggtitle(title=title)

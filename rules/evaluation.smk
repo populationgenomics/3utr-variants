@@ -127,7 +127,8 @@ rule gather_plot_single:
 rule plots:
     # Plot all MAPS results in single plot
     input:
-        maps=rules.gather_MAPS.output
+        maps=rules.gather_MAPS.output,
+        single_plots=rules.gather_plot_single.input
     output:
         maps=output_root / 'plots/MAPS_{run_location}.png'
     script: '../scripts/plots.py'
