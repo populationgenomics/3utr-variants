@@ -2,7 +2,7 @@
 output_root: data/pas_out
 bucket: cpg-utr-variants-test  # name of storage container to run in
 cluster: utr-variant-chr22  # name of dataproc cluster instance
-local: true
+local: false
 genome_assembly: GRCh37
 gnomAD:
   subset: '22:1-51304566' # end: 51304566
