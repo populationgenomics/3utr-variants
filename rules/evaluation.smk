@@ -115,19 +115,16 @@ rule plot_single:
         maps=output_root / 'plots/{run_location}/MAPS_{variant_subset}.png'
     script: '../scripts/plots_single.py'
 
-rule gather_plot_single:
-    input:
-        expand(
-            rules.plot_single.output,
-            variant_subset=variant_subsets.keys(),
-            allow_missing=True
-        )
 
 rule plots:
     # Plot all MAPS results in single plot
     input:
         maps=rules.gather_MAPS.output,
-        single_plots=rules.gather_plot_single.input
+        single_plots=expand(
+            rules.plot_single.output,
+            variant_subset=variant_subsets.keys(),
+            allow_missing=True
+        )
     output:
         maps=output_root / 'plots/MAPS_{run_location}.png'
     script: '../scripts/plots.py'
