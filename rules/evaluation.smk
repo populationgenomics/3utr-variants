@@ -80,7 +80,7 @@ def maps_file(wildcards):
     """
     return rules.MAPS_local.output.maps \
         if wildcards.run_location == 'local' \
-        else rules.MAPS_GCP.output.maps
+        else GS.remote(rules.MAPS_GCP.output.maps, keep_local=True)
 
 
 def gather_files(wildcards, target, **kwargs):
@@ -90,7 +90,7 @@ def gather_files(wildcards, target, **kwargs):
     subsets = variant_subsets.keys()
     if wildcards.run_location == 'local':
         return expand(target,**kwargs)
-    return GS.remote(expand(target.__str__(),**kwargs))
+    return GS.remote(expand(target.__str__(),**kwargs), keep_local=True)
 
 
 rule gather_MAPS:
