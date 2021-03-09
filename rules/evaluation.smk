@@ -31,7 +31,6 @@ rule MAPS_GCP:
             f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
             keep_local=True
         ),
-    log: GS.remote(f'{config["bucket"]}/MAPS_{{variant_subset}}.log')
     params:
         gnomad_prepare='utr3variants/annotate_gnomad.py',
         maps_score='utr3variants/maps.py'
@@ -42,7 +41,7 @@ rule MAPS_GCP:
         hailctl dataproc submit {config[cluster]} \
             --pyfiles {params.gnomad_prepare},{params.maps_score} \
             scripts/maps_gcp.py  \
-                -o gs://{output.maps} --log gs://{log} \
+                -o gs://{output.maps} \
                 --intervals $INTERVAL_PATH \
                 --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
                 --context_ht {config[gnomAD][context_ht]} \

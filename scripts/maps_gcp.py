@@ -56,9 +56,10 @@ if __name__ == '__main__':
         help='Chromosome region to subset variants to',
     )
     parser.add_argument(
-        '--log',
-        required=True,
-        help='GCP link for log output in bucket',
+        '--verbose',
+        required=False,
+        action='store_true',
+        help='Show more output',
     )
     args = parser.parse_args()
 
@@ -79,8 +80,8 @@ if __name__ == '__main__':
 
     print('MAPS score')
     maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])
-    maps_ht.show()
+    if args.verbose:
+        maps_ht.show()
 
     print('save...')
     maps_ht.export(args.output)
-    hl.copy_log(args.log)
