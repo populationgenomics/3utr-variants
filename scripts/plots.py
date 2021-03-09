@@ -31,7 +31,7 @@ maps_plot = (
     + facet_grid('variant_subset~.')
     + ggtitle(title=title)
     + scale_color_brewer(type="qual", palette='Dark2')
-    + theme_classic()
+    + theme_bw()
     + theme(
         legend_position='right',
         # axis_text_x=element_text(angle=90, hjust=1),
