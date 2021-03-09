@@ -112,15 +112,20 @@ def maps(
     additional_grouping=None,  # change from mutable default to None
     singleton_expression: hl.expr.BooleanExpression = None,
     skip_worst_csq: bool = False,
+    skip_mut_check: bool = False,  # added
 ) -> hl.Table:
     """
     adapted from:
     https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L267
+
+    :param skip_mut_check: skip checking for mutation rate ht
     """
     if additional_grouping is None:
         additional_grouping = []  # use mutable default
     if not skip_worst_csq:
         additional_grouping.insert(0, 'worst_csq')
+
+    print('Count variants')
     ht = count_variants(
         ht,
         count_singletons=True,
@@ -128,6 +133,7 @@ def maps(
         force_grouping=True,
         singleton_expression=singleton_expression,
     )
+
     ht = ht.annotate(
         mu=mutation_ht[
             hl.struct(
@@ -139,12 +145,19 @@ def maps(
         ].mu_snp,
         ps=ht.singleton_count / ht.variant_count,
     )
-    if not ht.all(hl.is_defined(ht.mu)):
-        print('Some mu were not found...')
-        print(
-            ht.aggregate(hl.agg.filter(hl.is_missing(ht.mu), hl.agg.take(ht.row, 1)[0]))
-        )
-        sys.exit(1)
+
+    # edit: force skip check if certain mutation ht is fine
+    if skip_mut_check:
+        print('Check mutation rates...')
+        if not ht.all(hl.is_defined(ht.mu)):
+            print('Some mu were not found...')
+            print(
+                ht.aggregate(
+                    hl.agg.filter(hl.is_missing(ht.mu), hl.agg.take(ht.row, 1)[0])
+                )
+            )
+            sys.exit(1)
+
     syn_ps_ht = ht.filter(ht.worst_csq == 'synonymous_variant')
     syn_ps_ht = syn_ps_ht.group_by(syn_ps_ht.mu).aggregate(
         singleton_count=hl.agg.sum(syn_ps_ht.singleton_count),
@@ -154,6 +167,7 @@ def maps(
         ps=syn_ps_ht.singleton_count / syn_ps_ht.variant_count
     )
 
+    print('Fit linear model...')
     lm = syn_ps_ht.aggregate(
         hl.agg.linreg(
             syn_ps_ht.ps, [1, syn_ps_ht.mu], weight=syn_ps_ht.variant_count
@@ -162,6 +176,7 @@ def maps(
     print(f'Got MAPS calibration model of: slope: {lm[1]}, intercept: {lm[0]}')
     ht = ht.annotate(expected_singletons=(ht.mu * lm[1] + lm[0]) * ht.variant_count)
 
+    print('Annotate MAPS statistics...')
     agg_ht = ht.group_by(*additional_grouping).aggregate(
         singleton_count=hl.agg.sum(ht.singleton_count),
         expected_singletons=hl.agg.sum(ht.expected_singletons),
