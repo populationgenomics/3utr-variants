@@ -31,7 +31,7 @@ if __name__ == '__main__':
     ht = hl.read_table(gnomad_path)
 
     print('Annotate by intervals')
-    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group', repartition=False)
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
 
     print('MAPS score')
     maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])

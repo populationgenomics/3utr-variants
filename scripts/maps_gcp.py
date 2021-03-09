@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
-    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group', repartition=True)
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
 
     print('MAPS score')
     maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])
