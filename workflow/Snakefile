@@ -16,15 +16,14 @@ include: 'rules/evaluation.smk'
 rule all:
     input:
         expand(
-            rules.plots.output,
-            run_location='local' if config['local'] else 'gcp',
-            chr_subset=config['chr_subsets'].keys()
-        )
+             rules.plots.output,
+             run_location='local' if config['local'] else 'gcp'
+         )
 
 rule dependency:
     output:
-        dag=multiext(str(output_root / 'dependency_dag'),'.svg','.png'),
-        rulegraph=multiext(str(output_root / 'dependency_rules'),'.svg','.png')
+        dag=multiext(str(output_root/'dependency_dag'), '.svg', '.png'),
+        rulegraph=multiext(str(output_root/'dependency_rules'), '.svg', '.png')
     shell:
         """
         snakemake --dag | dot -Tsvg -Grankdir=TB > {output.dag[0]}
