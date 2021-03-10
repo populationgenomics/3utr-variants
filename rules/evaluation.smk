@@ -27,13 +27,11 @@ rule MAPS_GCP:
     # Compute MAPS on Google Cloud
     input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output:
-        maps=GS.remote(
-            f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
-            keep_local=True
-        ),
+        maps=config["bucket"] + '/{chr_subset}/MAPS_{variant_subset}.tsv',
     params:
         gnomad_prepare='utr3variants/annotate_gnomad.py',
-        maps_score='utr3variants/maps.py'
+        maps_score='utr3variants/maps.py',
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     shell:
         """
         INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
@@ -47,7 +45,7 @@ rule MAPS_GCP:
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
                 --genome_assembly {config[genome_assembly]} \
-                --chr_subset {config[gnomAD][subset]}
+                --chr_subset {params.chr_subset}
         gsutil rm $INTERVAL_PATH
         """
 
@@ -56,8 +54,10 @@ rule prepare_gnomAD:
     # Prepare gnomAD hail table (for local run)
     threads: 10
     output:
-        gnomAD_ht=directory(output_root / 'gnomAD.ht')
-    log: hail=str(output_root / 'logs/prepare_gnomAD_hail.log')
+        gnomAD_ht=directory(output_root / '{chr_subset}/gnomAD.ht')
+    params:
+        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+    log: hail=str(output_root / 'logs/prepare_gnomAD_hail_{chr_subset}.log')
     script: '../scripts/prepare_gnomad.py'
 
 
@@ -67,8 +67,8 @@ rule MAPS_local:
         intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        maps=output_root / 'MAPS/local/{variant_subset}.tsv',
-    log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail.log')
+        maps=output_root / '{chr_subset}/MAPS/local/{variant_subset}.tsv',
+    log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail_{chr_subset}.log')
     threads: 10
     script: '../scripts/maps_score.py'
 
@@ -80,23 +80,28 @@ def maps_file(wildcards):
     """
     return rules.MAPS_local.output.maps \
         if wildcards.run_location == 'local' \
-        else GS.remote(rules.MAPS_GCP.output.maps, keep_local=True)
+        else GS.remote(rules.MAPS_GCP.output.maps,keep_local=True)
 
 
 def gather_files(wildcards, target, **kwargs):
     """
     Expand target expression, depending on wildcards.run_location
     """
-    subsets = variant_subsets.keys()
     if wildcards.run_location == 'local':
         return expand(target,**kwargs)
-    return GS.remote(expand(target.__str__(),**kwargs), keep_local=True)
+    return GS.remote(expand(target.__str__(),**kwargs),keep_local=True)
 
 
 rule gather_MAPS:
     # Merge different MAPS results into single table
-    input: lambda w: gather_files(w,maps_file(w),variant_subset=variant_subsets.keys())
-    output: output_root / 'MAPS/all_{run_location}.tsv'
+    input:
+        lambda wildcards: gather_files(
+            wildcards,
+            maps_file(wildcards),
+            variant_subset=variant_subsets.keys(),
+            allow_missing=True
+        )
+    output: output_root / '{chr_subset}/MAPS/all_{run_location}.tsv'
     run:
         import pandas as pd
 
@@ -112,7 +117,9 @@ rule gather_MAPS:
 rule plot_single:
     input: maps_file
     output:
-        maps=output_root / 'plots/{run_location}/MAPS_{variant_subset}.png'
+        maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_{variant_subset}.png'
+    params:
+        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     script: '../scripts/plots_single.py'
 
 
@@ -126,5 +133,7 @@ rule plots:
             allow_missing=True
         )
     output:
-        maps=output_root / 'plots/MAPS_{run_location}.png'
+        maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_all.png'
+    params:
+        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     script: '../scripts/plots.py'

@@ -13,7 +13,7 @@ df = pd.read_table(snakemake.input[0], sep='\t')
 df = df[df.worst_csq == '3_prime_UTR_variant']
 df[['interval_set', 'annotation']] = df['UTR_group'].str.split('|', expand=True)
 
-chr_subset = snakemake.config['gnomAD']['subset']
+chr_subset = snakemake.params['chr_subset']
 title = f'{chr_subset} worst_csq: 3\'UTR variant'
 point_position = position_dodge(1)
 
