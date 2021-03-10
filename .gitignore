@@ -1,5 +1,6 @@
 notebooks/
-data
+results/output
+resources/annotations
 
 .idea/
 .Rhistory
