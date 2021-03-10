@@ -16,10 +16,11 @@ See rules/evaluation.smk for a generic hailctl command.
 """
 
 import hail as hl
-import gnomad.utils.vep
 
-from prepare_gnomad import get_worst_consequence_with_non_coding, prepare_ht
-from maps_score import maps
+# pylint: disable=E0401
+from annotate_gnomad import filter_gnomad, annotate_for_maps, annotate_by_intervals
+from maps import maps  # pylint: disable=E0401
+
 
 if __name__ == '__main__':
     import argparse
@@ -50,46 +51,37 @@ if __name__ == '__main__':
         help='Genome assembly identifier e.g. GRCh37',
     )
     parser.add_argument(
-        '--log',
+        '--chr_subset',
         required=True,
-        help='GCP link for log output in bucket',
+        help='Chromosome region to subset variants to',
+    )
+    parser.add_argument(
+        '--verbose',
+        required=False,
+        action='store_true',
+        help='Show more output',
     )
     args = parser.parse_args()
 
     hl.init(default_reference=args.genome_assembly)
 
-    # intervals = hl.import_bed(bed_file, reference_genome=reference_genome')
-    with open(args.intervals, 'r') as f:
-        intervals = f.readlines()
-    intervals = [
-        hl.parse_locus_interval(x, reference_genome=args.genome_assembly)
-        for x in intervals
-    ]
-
+    intervals = hl.import_bed(args.intervals)
     mutation_ht = hl.read_table(args.mutation_ht)
-
-    # subset context table
     context_ht = hl.read_table(args.context_ht)
-    context_ht = hl.filter_intervals(context_ht, intervals)
-
-    # prepare gnomAD table
     ht = hl.read_table(args.gnomAD_ht)
-    ht = hl.filter_intervals(ht, intervals)
-    ht = ht.filter(hl.len(ht.filters) == 0)
-    ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
-    print(f'entries in gnomAD after filtering: {ht.count()}')
 
-    ht = get_worst_consequence_with_non_coding(ht)
-    context = context_ht[ht.key]
-    snp_ht = prepare_ht(
-        ht=ht.annotate(context=context.context, methylation=context.methylation),
-        trimer=True,
-    )
+    print('Filter')
+    subset_interval = hl.parse_locus_interval(args.chr_subset)
+    ht = filter_gnomad(ht, [subset_interval])
+
+    print('Annotate')
+    ht = annotate_for_maps(ht, context_ht)
+    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
 
     print('MAPS score')
-    maps_ht = maps(snp_ht, mutation_ht, additional_grouping=['protein_coding'])
-    maps_ht.show()
+    maps_ht = maps(ht, mutation_ht, additional_grouping=['UTR_group'])
+    if args.verbose:
+        maps_ht.show()
 
     print('save...')
     maps_ht.export(args.output)
-    hl.copy_log(args.log)

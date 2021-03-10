@@ -8,59 +8,47 @@ GS = GSRemoteProvider()
 
 # wildcards for feature extraction rules
 variant_subsets = {
-    'PolyADB_40nt-conserved': expand(
-        rules.extract_PolyA_DB.output.PAS_context_40nt,
-        filter='conserved'
+    'PolyADB-overall': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='overall'
     ),
-    'PolyADB_100nt-conserved': expand(
-        rules.extract_PolyA_DB.output.PAS_context_100nt,
-        filter='conserved'
+    'PolyADB-hexamer': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='hexamer'
     ),
-    #'PolyADB_hexamers-conserved': expand(
-    #    rules.extract_PolyA_DB.output.PAS_hexamers,
-    #    filter='conserved'
-    #),
-    'PolyADB_hexamers-all': expand(
-        rules.extract_PolyA_DB.output.PAS_hexamers,
-        filter='all'
-    ),
-    'Gencode_UTR': rules.extract_Gencode_UTR.output.utr
+    'PolyADB-conserved': expand(
+        rules.merge_UTR_intervals.output.intervals,
+        annotation='conserved'
+    )
 }
-
-
-rule convert_bedfile:
-    # Convert BED file format to hail parsable strings
-    input: lambda wildcards: variant_subsets[wildcards.variant_subset]
-    output: output_root / 'intervals/{variant_subset}_hail.txt'
-    params:
-        chr_style_hail='' if config['genome_assembly'] == 'GRCh37' else 'chr'
-    script: '../scripts/convert_bed.py'
 
 
 rule MAPS_GCP:
     # Compute MAPS on Google Cloud
-    input: rules.convert_bedfile.output
+    input: lambda wildcards: variant_subsets[wildcards.variant_subset]
     output:
         maps=GS.remote(
             f'{config["bucket"]}/MAPS_{{variant_subset}}.tsv',
             keep_local=True
         ),
-    log: GS.remote(f'{config["bucket"]}/MAPS_{{variant_subset}}.log')
     params:
-        gnomad_prepare='scripts/prepare_gnomad.py',
-        maps_score='scripts/maps_score.py'
+        gnomad_prepare='utr3variants/annotate_gnomad.py',
+        maps_score='utr3variants/maps.py'
     shell:
         """
+        INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
+        gsutil cp {input} $INTERVAL_PATH
         hailctl dataproc submit {config[cluster]} \
-            --files {input} \
             --pyfiles {params.gnomad_prepare},{params.maps_score} \
             scripts/maps_gcp.py  \
-                -o gs://{output.maps} --log gs://{log} \
-                --intervals $(basename {input}) \
+                -o gs://{output.maps} \
+                --intervals $INTERVAL_PATH \
                 --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
-                --genome_assembly {config[genome_assembly]}
+                --genome_assembly {config[genome_assembly]} \
+                --chr_subset {config[gnomAD][subset]}
+        gsutil rm $INTERVAL_PATH
         """
 
 
@@ -76,29 +64,38 @@ rule prepare_gnomAD:
 rule MAPS_local:
     # Compute MAPS locally
     input:
-        intervals=rules.convert_bedfile.output,
+        intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        maps=output_root / 'MAPS/{variant_subset}_local.tsv',
+        maps=output_root / 'MAPS/local/{variant_subset}.tsv',
     log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail.log')
     threads: 10
     script: '../scripts/maps_score.py'
 
 
-def maps_files(wildcards):
+def maps_file(wildcards):
     """
-    Collect all MAPS files based on wildcards defined in variant_subsets
+    Get MAPS file based on wildcards defined in variant_subsets
     Handles local or remote files (depending on config)
+    """
+    return rules.MAPS_local.output.maps \
+        if wildcards.run_location == 'local' \
+        else GS.remote(rules.MAPS_GCP.output.maps, keep_local=True)
+
+
+def gather_files(wildcards, target, **kwargs):
+    """
+    Expand target expression, depending on wildcards.run_location
     """
     subsets = variant_subsets.keys()
     if wildcards.run_location == 'local':
-        return expand(rules.MAPS_local.output.maps,variant_subset=subsets)
-    return GS.remote(expand(rules.MAPS_GCP.output.maps.__str__(),variant_subset=subsets))
+        return expand(target,**kwargs)
+    return GS.remote(expand(target.__str__(),**kwargs), keep_local=True)
 
 
 rule gather_MAPS:
     # Merge different MAPS results into single table
-    input: maps_files
+    input: lambda w: gather_files(w,maps_file(w),variant_subset=variant_subsets.keys())
     output: output_root / 'MAPS/all_{run_location}.tsv'
     run:
         import pandas as pd
@@ -112,9 +109,22 @@ rule gather_MAPS:
         df_all.to_csv(output[0],index=False,sep='\t')
 
 
+rule plot_single:
+    input: maps_file
+    output:
+        maps=output_root / 'plots/{run_location}/MAPS_{variant_subset}.png'
+    script: '../scripts/plots_single.py'
+
+
 rule plots:
     # Plot all MAPS results in single plot
-    input: rules.gather_MAPS.output
+    input:
+        maps=rules.gather_MAPS.output,
+        single_plots=expand(
+            rules.plot_single.output,
+            variant_subset=variant_subsets.keys(),
+            allow_missing=True
+        )
     output:
         maps=output_root / 'plots/MAPS_{run_location}.png'
     script: '../scripts/plots.py'
