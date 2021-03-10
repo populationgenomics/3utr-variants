@@ -16,13 +16,13 @@ gnomAD:
 databases:
   APAatlas_DaPars:
     url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
-    APA: ../resources/annotations/APAatlas/DaPars/PDUI.txt
-    annotation: ../resources/annotations/APAatlas/DaPars/hg19_refseq_extracted_3UTR.bed
+    APA: resources/annotations/APAatlas/DaPars/PDUI.txt
+    annotation: resources/annotations/APAatlas/DaPars/hg19_refseq_extracted_3UTR.bed
     chr_style: chr
   APAatlas_SAAP-RS:
     url: https://hanlab.uth.edu/static/download/matrix/RED.txt.zip
-    APA: ../resources/annotations/APAatlas/SAAP-RS/RED.txt
-    annotation: ../resources/annotations/APAatlas/SAAP-RS/RED_3UTR_annotation_hg19.txt
+    APA: resources/annotations/APAatlas/SAAP-RS/RED.txt
+    annotation: resources/annotations/APAatlas/SAAP-RS/RED_3UTR_annotation_hg19.txt
     chr_style: chr
   PolyA_DB:
     url: https://exon.apps.wistar.org/PolyA_DB/v3/download/3.2/human_pas.zip
