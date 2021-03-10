@@ -4,8 +4,10 @@ bucket: cpg-utr-variants-test  # name of storage container to run in
 cluster: utr-variant-chr22  # name of dataproc cluster instance
 local: false
 genome_assembly: GRCh37
+chr_subsets:
+    chr22: '22:1-51304566' # end: 51304566
+    #- '1:1-249250621'
 gnomAD:
-  subset: '22:1-51304566' # end: 51304566
   version: 2.1.1
   gnomAD_ht: gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht
   context_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/context/Homo_sapiens_assembly19.fasta.snps_only.vep_20181129.ht

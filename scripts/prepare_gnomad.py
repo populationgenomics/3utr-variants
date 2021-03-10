@@ -20,7 +20,7 @@ if __name__ == '__main__':
     context_ht = hl.read_table(snakemake.config['gnomAD']['context_ht'])
     ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
 
-    subset_interval = hl.parse_locus_interval(snakemake.config['gnomAD']['subset'])
+    subset_interval = hl.parse_locus_interval(snakemake.params['chr_subset'])
     print('Filter gnomAD')
     ht = filter_gnomad(ht, [subset_interval])
     print('Annotate')

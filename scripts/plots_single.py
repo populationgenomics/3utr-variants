@@ -17,7 +17,7 @@ df = df[df['variant_count'] >= 10]
 break_scale = round((df['maps'] + df['maps_sem']).max() / 5, 2)
 breaks = [round(x * break_scale, 2) for x in range(-5, 6)]
 
-chr_subset = snakemake.config['gnomAD']['subset']
+chr_subset = snakemake.params['chr_subset']
 title = f'{chr_subset} - {snakemake.wildcards.variant_subset}'
 point_position = position_dodge(1)
 
