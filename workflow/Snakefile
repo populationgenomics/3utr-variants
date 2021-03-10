@@ -5,7 +5,7 @@ Contains final rule, dependency graph rule, and connects Snakefiles from rules/
 
 from pathlib import Path
 
-configfile: 'config.yml'
+configfile: 'configs/config.yml'
 output_root = Path(config['output_root']).resolve()
 config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else 'hg38'
 
