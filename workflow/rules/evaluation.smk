@@ -61,15 +61,26 @@ rule prepare_gnomAD:
     script: '../scripts/prepare_gnomad.py'
 
 
+rule fit_mutability_local:
+    # Compute MAPS locally
+    input:
+        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
+    output:
+        fit=output_root / '{chr_subset}/MAPS/local/mut_fit.txt',
+    log: hail=str(output_root / 'logs/local_fit_mut_{chr_subset}.log')
+    threads: 10
+    script: '../scripts/fit_mutability.py'
+
+
 rule MAPS_local:
     # Compute MAPS locally
     input:
         intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
-        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
+        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht,
+        mut_fit=rules.fit_mutability_local.output.fit
     output:
         maps=output_root / '{chr_subset}/MAPS/local/{variant_subset}.tsv',
     log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail_{chr_subset}.log')
-    threads: 10
     script: '../scripts/maps_score.py'
 
 
