@@ -2,7 +2,7 @@
 MAPS score functions from https://github.com/macarthur-lab/gnomad_lof
 """
 import sys
-from typing import Union
+from typing import Union, Tuple
 import hail as hl
 
 
@@ -104,6 +104,132 @@ def count_variants(
             return agg['variant_count'].dtype
         else:
             return ht.aggregate(hl.struct(**agg))
+
+
+def add_mutation_rate(ht: hl.Table, mutation_ht: hl.Table, mut_check: bool = True):
+    """
+    Add mutation rates indexed by context, ref/alt alleles & methylation context
+    :param ht: hail table to be annotated
+    :param mutation_ht: mutation rates indexed by context, ref/alt & methylation_context
+    :param mut_check: whether to check for missing mutation rates. This check can be
+        skipped to save time e.g. if it has already been done before
+    """
+    ht = ht.annotate(
+        mu=mutation_ht[
+            hl.struct(
+                context=ht.context,
+                ref=ht.ref,
+                alt=ht.alt,
+                methylation_level=ht.methylation_level,
+            )
+        ].mu_snp
+    )
+
+    # edit: force skip check if certain mutation ht is fine
+    if mut_check:
+        print('Check mutation rates...')
+        if not ht.all(hl.is_defined(ht.mu)):
+            print('Some mu were not found...')
+            print(
+                ht.aggregate(
+                    hl.agg.filter(hl.is_missing(ht.mu), hl.agg.take(ht.row, 1)[0])
+                )
+            )
+            sys.exit(1)
+
+    return ht
+
+
+def fit_mutability(
+    ht: hl.Table,
+    mutation_ht: hl.Table,
+    mut_check: bool = True,
+    singleton_expression: hl.expr.BooleanExpression = None,
+    worst_csq: str = 'synonymous_variant',
+) -> Tuple[float, float]:
+    """
+    Fit linear model to mutation rates against worst consequence class
+    :param ht: gnomAD hail table, needs to have annotated 'worst_csq'
+    :param mutation_ht: mutation rates hail table
+        indexed by context, ref, alt and methylation_level
+    :param mut_check: whether to check for missing mutation rates
+    :param singleton_expression: singleton definition
+    :param worst_csq: name of worst consequence class to calibrate against,
+        default: synonymous_variant
+    :return: linear model fit slope & intercept
+    """
+    ht = count_variants(
+        ht,
+        count_singletons=True,
+        additional_grouping=('worst_csq',),
+        force_grouping=True,
+        singleton_expression=singleton_expression,
+    )
+    ht = add_mutation_rate(ht, mutation_ht, mut_check=mut_check)
+
+    # Subset to worst consequence class variants
+    syn_ps_ht = ht.filter(ht.worst_csq == worst_csq)
+    syn_ps_ht = syn_ps_ht.group_by(syn_ps_ht.mu).aggregate(
+        singleton_count=hl.agg.sum(syn_ps_ht.singleton_count),
+        variant_count=hl.agg.sum(syn_ps_ht.variant_count),
+    )
+    syn_ps_ht = syn_ps_ht.annotate(
+        ps=syn_ps_ht.singleton_count / syn_ps_ht.variant_count
+    )
+
+    print('Linear regression...')
+    intercept, slope = syn_ps_ht.aggregate(
+        hl.agg.linreg(
+            syn_ps_ht.ps, [1, syn_ps_ht.mu], weight=syn_ps_ht.variant_count
+        ).beta
+    )
+    print(f'Got MAPS calibration model of: slope: {slope}, intercept: {intercept}')
+    return intercept, slope
+
+
+def maps_precomputed(
+    ht: hl.Table,
+    mutation_ht: hl.Table,
+    mutability_fit: Tuple[float, float],
+    grouping=None,
+    singleton_expression: hl.expr.BooleanExpression = None,
+    mut_check: bool = False,
+) -> hl.Table:
+    """
+    Compute MAPS based on precomputed mutability fit
+    :param ht: gnomAD hail table, annotated with mutation rates
+    :param mutation_ht: mutation rates for mutability adjustment
+    :param mutability_fit: model fit of mutation rates as tuple of (intersect, slope)
+    :param grouping: tuple of group names to aggregate MAPS by
+    :param singleton_expression: singleton definition
+    :param mut_check: whether to check for missing mutation rates
+    """
+    ht = count_variants(
+        ht,
+        count_singletons=True,
+        additional_grouping=grouping,
+        force_grouping=True,
+        singleton_expression=singleton_expression,
+    )
+    ht = add_mutation_rate(ht, mutation_ht, mut_check=mut_check)
+
+    intercept, slope = mutability_fit
+    ht = ht.annotate(expected_singletons=(ht.mu * slope + intercept) * ht.variant_count)
+
+    agg_ht = ht.group_by(*grouping).aggregate(
+        singleton_count=hl.agg.sum(ht.singleton_count),
+        expected_singletons=hl.agg.sum(ht.expected_singletons),
+        variant_count=hl.agg.sum(ht.variant_count),
+    )
+    agg_ht = agg_ht.annotate(
+        ps=agg_ht.singleton_count / agg_ht.variant_count,
+        maps=(agg_ht.singleton_count - agg_ht.expected_singletons)
+        / agg_ht.variant_count,
+    )
+    agg_ht = agg_ht.annotate(
+        maps_sem=(agg_ht.ps * (1 - agg_ht.ps) / agg_ht.variant_count) ** 0.5
+    )
+    return agg_ht
 
 
 def maps(

@@ -53,11 +53,12 @@ def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Tabl
 
 def annotate_for_maps(ht, context_ht) -> hl.Table:
     """
-    Include annotations for MAPS analogue to
+    Include annotations for worst consequence & context, analogue to
     https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
 
     :param ht: gnomAD hail table to be annotated
     :param context_ht: context data to include as annotation
+    :return: annotated hail table
     """
     ht = get_worst_consequence_with_non_coding(ht)
     context_ht = context_ht[ht.key]
