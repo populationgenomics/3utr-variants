@@ -16,13 +16,16 @@ A higher MAPS score (compared to a baseline) suggests that there is a stronger e
 
 ## Repository Files
 
-The repository mainly contains Snakefiles for Snakemake pipeline rules in `rules/` and python scripts in `scripts/`.
+The repository mainly contains a Snakemake workflow in `workflow` and a python package in `utr3variants` for the functions used in the pipeline scripts.
+Input paths, URLs and parameters are collected in `configs/config.yml` and should be adapted by the user.
 Additionally, there is a `qc/` directory for any exploratory analyses on input databases.
 
+The Snakemake file structure under `workflow` is organised [as recommended](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html) by the Snakemake documentation.
+It contains Snakefiles for Snakemake pipeline rules in `rules/` and python scripts in `scripts/`.
 The Snakefiles in `rules/` are used by the `Snakefile` in the repository root and cannot be run independently.
-Input paths, URLs and parameters are collected in `config.yml` and should be adapted by the user.
-The python scripts are linked to the Snakemake objects that are passed when the pipeline is called, but some scripts can be run by themselves as well.
-How the python scripts are used is best demonstrated in the Snakemake rules, where input and output files are defined.
+Snakemake objects are passed to the python scripts when the pipeline is called locally.
+However, scripts that are to be submitted to the GCP do not handle Snakemake objects and can be run independently as well.
+How the python scripts are used, is best demonstrated in the Snakemake rules, where input and output files are defined.
 More information on scripts in Snakemake pipelines is documented [here](https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#external-scripts).
 
 ## Pipeline
@@ -48,7 +51,7 @@ curl -sSL https://broad.io/install-gcs-connector | python
 
 ### Configuration
 
-The `config.yml` file contains links to `hail` datasets and local files.
+The `configs/config.yml` file contains links to `hail` datasets and local files.
 Local input files and output directories can be modified accordingly.
 For GCP runs, keys `bucket` and `cluster` need to be specified, and the key `local` needs to be set to `false` in the `config.yml`.
 
@@ -58,29 +61,29 @@ cluster: cluster_name
 local: false
 ```
 
-For `bucket` you need to give the GCP storage bucket name you want your output to be stored in, while `cluster` defines the name of the `hailctl dataproc` cluster.
-Before calling the `snakemake` pipeline, start the `dataproc` session, preferrably with a compute timeout.
+The key `bucket` specifies the GCP storage bucket name you want your output to be stored in, while `cluster` defines the name of the `hailctl dataproc` cluster.
+Before calling the Snakemake pipeline on the GCP, you need to start the `dataproc` session, preferably with a compute timeout.
 
 ```commandline
 hailctl dataproc start cluster_name --max-age=2h --packages gnomad
 ```
 
-The pipeline runs locally, if `local` is set to `true`.
+You don't need to start a `dataproc` session, if you want to run the pipeline locally, setting `local` to `true`.
 In that case, the `bucket` and `cluster` keys do not need to be specified.
 
 ### Call the Pipeline
 
-In order to call the pipeline, you can use the following
-(where `-j` or `--cores` sets the number of cores to be used):
-
-```commandline
-snakemake -j 10
-```
-
+The pipeline was configured to be called from the root directory of this repository.
 For a dry run, you can supply the `-n` argument:
 
 ```commandline
 snakemake -n
+```
+
+In order to executed the steps listed in the dry run, use `-j` or `--cores` to set the number of cores available to the pipeline:
+
+```commandline
+snakemake -j 10
 ```
 
 ### Workflow Graph
@@ -89,10 +92,12 @@ It is useful to get a visual representation of what will be computed.
 For that, you can call the `dependency` rule that creates graphs for the dependency between rules (more general) and jobs (specific to wildcards).
 
 ```commandline
-snakemake dependency -Fj
+snakemake dependency -fj
 ```
 
-The output files can be found in the `output_root` directory specified in `config.yml`.
+Here, `-f` enforces the pipeline to overwrite any pre-existing dependency graphs.
+
+The output files can be found in the `output_root` directory specified in `configs/config.yml`.
 Below are some examples of a local run.
 
 #### Rule graph for GCP run
