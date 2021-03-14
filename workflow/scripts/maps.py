@@ -36,6 +36,6 @@ def aggregate_maps(df: pd.DataFrame, grouping: Iterable[str]) -> pd.DataFrame:
 
 
 if __name__ == '__main__':
-    count_df = pd.read_table(snakemake.input.counts.__str__())
+    count_df = pd.read_table(snakemake.input.counts.__str__(), na_filter=False)
     maps_df = aggregate_maps(count_df, grouping=snakemake.wildcards.variant_subset)
     maps_df.to_csv(snakemake.output.maps, sep='\t', index=False)

@@ -8,22 +8,19 @@ Plots for a single variant subset
 import pandas as pd
 from plotnine import *  # pylint: disable=W0614,W0401
 
+chr_subset = snakemake.params['chr_subset']
+annotation = snakemake.wildcards.variant_subset
 df = pd.read_table(snakemake.input[0], sep='\t')
 
-df['UTR_group'] = df['UTR_group'] + '|'
-df[['interval_set', 'annotation']] = df['UTR_group'].str.split('|', expand=True)[[0, 1]]
-
 df = df[df['variant_count'] >= 10]
-break_scale = round((df['maps'] + df['maps_sem']).max() / 5, 2)
-breaks = [round(x * break_scale, 2) for x in range(-5, 6)]
-
-chr_subset = snakemake.params['chr_subset']
-title = f'{chr_subset} - {snakemake.wildcards.variant_subset}'
+# break_scale = round((df['maps'] + df['maps_sem']).max() / 5, 2)
+# breaks = [round(x * break_scale, 2) for x in range(-5, 6)]
+title = f'{chr_subset} - {annotation}'
 point_position = position_dodge(1)
 
 maps_plot = (
     ggplot(df)
-    + aes('worst_csq', 'maps', color='annotation')
+    + aes(annotation, 'maps')
     + geom_point(position=point_position)
     + geom_errorbar(
         aes(ymin='maps-maps_sem', ymax='maps+maps_sem'),
@@ -32,9 +29,9 @@ maps_plot = (
     )
     + geom_text(aes(label='variant_count'), size=12, position=point_position)
     + geom_hline(yintercept=0, color='grey')
-    + facet_grid('interval_set~.')
+    # + facet_grid('interval_set~.')
     + ggtitle(title=title)
-    + scale_y_continuous(breaks=breaks)
+    # + scale_y_continuous(breaks=breaks)
     + scale_color_brewer(type="qual", palette='Dark2')
     + theme_bw(base_size=16)
     + theme(
@@ -44,4 +41,4 @@ maps_plot = (
     )
 )
 
-ggsave(maps_plot, snakemake.output.maps, width=15, height=15, dpi=150)
+ggsave(maps_plot, snakemake.output.maps, width=15, height=6)
