@@ -26,14 +26,16 @@ if __name__ == '__main__':
         log=snakemake.log['hail'],
         default_reference=ref,
     )
-
-    intervals = hl.import_bed(interval_file)
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
-    print('Done reading objects.')
 
-    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
-    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=['UTR_group'])
+    interval_annotations = snakemake.params.interval_annotations
+    interval_files = snakemake.input.intervals
+    for annotation, file in zip(interval_annotations, interval_files):
+        intervals = hl.import_bed(file.__str__())
+        ht = annotate_by_intervals(ht, intervals, new_column=annotation)
+
+    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=interval_annotations)
 
     print('save...')
     count_ht.export(counts_out)
