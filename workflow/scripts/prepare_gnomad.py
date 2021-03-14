@@ -7,7 +7,7 @@ Subset and annotate gnomAD hail table and save locally
         directory for subset and annotated gnomAD hail table
 """
 import hail as hl
-from utr3variants.annotate_gnomad import filter_gnomad
+from utr3variants.annotate_gnomad import filter_gnomad, annotate_for_maps
 
 
 if __name__ == '__main__':
@@ -16,6 +16,7 @@ if __name__ == '__main__':
         log=snakemake.log['hail'],
         default_reference=snakemake.config['genome_assembly'],
     )
+    context_ht = hl.read_table(snakemake.config['gnomAD']['context_ht'])
     ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
 
     subset_interval = hl.parse_locus_interval(snakemake.params['chr_subset'])

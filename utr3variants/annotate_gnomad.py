@@ -1,7 +1,7 @@
 """
 Annotation functions for gnomAD hail table
 """
-from typing import Union, Any
+from typing import Union, List
 import gnomad.utils.vep
 import hail as hl
 
@@ -31,9 +31,14 @@ def annotate_by_intervals(
     )
 
 
-def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Table:
+def filter_gnomad(
+    ht: hl.Table,
+    intervals: Union[hl.Table, List[hl.IntervalExpression]],
+    verbose: bool = True,
+) -> hl.Table:
     """
-    Annotate gnomAD hail table with necessary
+    Filter gnomAD dataset by interval expressions and according to
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
 
     :params ht: gnomAD hail table to be annotated
     :params intervals: intervals to filter by as hl.Table or list of

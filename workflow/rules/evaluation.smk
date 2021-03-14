@@ -61,37 +61,38 @@ rule prepare_gnomAD:
     script: '../scripts/prepare_gnomad.py'
 
 
-rule fit_mutability_local:
-    # Compute MAPS locally
-    input:
-        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
-    output:
-        fit=output_root / '{chr_subset}/MAPS/local/mut_fit.txt',
-    log: hail=str(output_root / 'logs/local_fit_mut_{chr_subset}.log')
-    threads: 10
-    script: '../scripts/fit_mutability.py'
-
-
-rule MAPS_local:
-    # Compute MAPS locally
+rule count_variants_local:
+    # Count variants locally
     input:
         intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
-        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht,
-        mut_fit=rules.fit_mutability_local.output.fit
+        gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        maps=output_root / '{chr_subset}/MAPS/local/{variant_subset}.tsv',
-    log: hail=str(output_root / 'logs/MAPS_local_{variant_subset}_hail_{chr_subset}.log')
-    script: '../scripts/maps_score.py'
+        counts=output_root / '{chr_subset}/MAPS/local/{variant_subset}_counts.tsv',
+    log: hail=str(output_root / 'logs/local_{chr_subset}_{variant_subset}_count_variants.log')
+    script: '../scripts/count_singletons.py'
 
 
-def maps_file(wildcards):
+def count_file(wildcards):
     """
-    Get MAPS file based on wildcards defined in variant_subsets
+    Get variant counts file based on wildcards
     Handles local or remote files (depending on config)
     """
-    return rules.MAPS_local.output.maps \
+    return rules.count_variants_local.output.counts \
         if wildcards.run_location == 'local' \
         else GS.remote(rules.MAPS_GCP.output.maps,keep_local=True)
+
+
+rule MAPS:
+    # Compute MAPS locally
+    input:
+        counts=count_file
+    output:
+        maps=output_root / '{chr_subset}/MAPS/{run_location}/{variant_subset}.tsv',
+    log:
+        hail=str(
+            output_root / 'logs/{run_location}_{chr_subset}_{variant_subset}_MAPS.log'
+        )
+    script: '../scripts/maps.py'
 
 
 def gather_files(wildcards, target, **kwargs):
@@ -108,7 +109,7 @@ rule gather_MAPS:
     input:
         lambda wildcards: gather_files(
             wildcards,
-            maps_file(wildcards),
+            rules.MAPS.output.maps,
             variant_subset=variant_subsets.keys(),
             allow_missing=True
         )
@@ -126,7 +127,7 @@ rule gather_MAPS:
 
 
 rule plot_single:
-    input: maps_file
+    input: rules.MAPS.output.maps
     output:
         maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_{variant_subset}.png'
     params:
