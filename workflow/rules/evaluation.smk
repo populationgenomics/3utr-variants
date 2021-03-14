@@ -6,28 +6,16 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 
 GS = GSRemoteProvider()
 
-# wildcards for feature extraction rules
-variant_subsets = {
-    'PolyADB-overall': expand(
-        rules.merge_UTR_intervals.output.intervals,
-        annotation='overall'
-    ),
-    'PolyADB-hexamer': expand(
-        rules.merge_UTR_intervals.output.intervals,
-        annotation='hexamer'
-    ),
-    'PolyADB-conserved': expand(
-        rules.merge_UTR_intervals.output.intervals,
-        annotation='conserved'
-    )
-}
-
 
 rule MAPS_GCP:
     # Compute MAPS on Google Cloud
-    input: lambda wildcards: variant_subsets[wildcards.variant_subset]
+    input:
+        intervals=expand(
+            rules.merge_UTR_intervals.output.intervals,
+            annotation=interval_annotations
+        ),
     output:
-        maps=config["bucket"] + '/{chr_subset}/MAPS_{variant_subset}.tsv',
+        maps=config["bucket"] + '/{chr_subset}/variant_count.tsv',
     params:
         gnomad_prepare='utr3variants/annotate_gnomad.py',
         maps_score='utr3variants/maps.py',
@@ -56,7 +44,7 @@ rule prepare_gnomAD:
     output:
         gnomAD_ht=directory(output_root / '{chr_subset}/gnomAD.ht')
     params:
-        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     log: hail=str(output_root / 'logs/prepare_gnomAD_hail_{chr_subset}.log')
     script: '../scripts/prepare_gnomad.py'
 
@@ -64,11 +52,16 @@ rule prepare_gnomAD:
 rule count_variants_local:
     # Count variants locally
     input:
-        intervals=lambda wildcards: variant_subsets[wildcards.variant_subset],
+        intervals=expand(
+            rules.merge_UTR_intervals.output.intervals,
+            annotation=interval_annotations
+        ),
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        counts=output_root / '{chr_subset}/MAPS/local/{variant_subset}_counts.tsv',
-    log: hail=str(output_root / 'logs/local_{chr_subset}_{variant_subset}_count_variants.log')
+        counts=output_root / '{chr_subset}/MAPS/local/variant_counts.tsv',
+    params:
+        interval_annotations=interval_annotations
+    log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
     script: '../scripts/count_singletons.py'
 
 
@@ -87,7 +80,7 @@ rule MAPS:
     input:
         counts=count_file
     output:
-        maps=output_root / '{chr_subset}/MAPS/{run_location}/{variant_subset}.tsv',
+        maps=output_root / '{chr_subset}/MAPS/{run_location}/MAPS_{variant_subset}.tsv',
     log:
         hail=str(
             output_root / 'logs/{run_location}_{chr_subset}_{variant_subset}_MAPS.log'
@@ -104,48 +97,48 @@ def gather_files(wildcards, target, **kwargs):
     return GS.remote(expand(target.__str__(),**kwargs),keep_local=True)
 
 
-rule gather_MAPS:
-    # Merge different MAPS results into single table
-    input:
-        lambda wildcards: gather_files(
-            wildcards,
-            rules.MAPS.output.maps,
-            variant_subset=variant_subsets.keys(),
-            allow_missing=True
-        )
-    output: output_root / '{chr_subset}/MAPS/all_{run_location}.tsv'
-    run:
-        import pandas as pd
+# rule gather_MAPS:
+#     # Merge different MAPS results into single table
+#     input:
+#         lambda wildcards: gather_files(
+#             wildcards,
+#             rules.MAPS.output.maps,
+#             variant_subset=variant_subsets.keys(),
+#             allow_missing=True
+#         )
+#     output: output_root / '{chr_subset}/MAPS/all_{run_location}.tsv'
+#     run:
+#         import pandas as pd
+#
+#         df_list = []
+#         for variant_subset, file in zip(variant_subsets.keys(),input):
+#             df = pd.read_table(file.__str__(),sep='\t')
+#             df['variant_subset'] = variant_subset
+#             df_list.append(df)
+#         df_all = pd.concat(df_list)
+#         df_all.to_csv(output[0],index=False,sep='\t')
 
-        df_list = []
-        for variant_subset, file in zip(variant_subsets.keys(),input):
-            df = pd.read_table(file.__str__(),sep='\t')
-            df['variant_subset'] = variant_subset
-            df_list.append(df)
-        df_all = pd.concat(df_list)
-        df_all.to_csv(output[0],index=False,sep='\t')
 
-
-rule plot_single:
+rule plots:
     input: rules.MAPS.output.maps
     output:
         maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_{variant_subset}.png'
     params:
-        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     script: '../scripts/plots_single.py'
 
 
-rule plots:
-    # Plot all MAPS results in single plot
-    input:
-        maps=rules.gather_MAPS.output,
-        single_plots=expand(
-            rules.plot_single.output,
-            variant_subset=variant_subsets.keys(),
-            allow_missing=True
-        )
-    output:
-        maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_all.png'
-    params:
-        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
-    script: '../scripts/plots.py'
+# rule plots:
+#     # Plot all MAPS results in single plot
+#     input:
+#         #maps=rules.gather_MAPS.output,
+#         single_plots=expand(
+#             rules.plot_single.output,
+#             variant_subset=interval_annotations,
+#             allow_missing=True
+#         )
+#     #output:
+#         #maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_all.png'
+#     #params:
+#     #   chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+#     script: '../scripts/plots.py'
