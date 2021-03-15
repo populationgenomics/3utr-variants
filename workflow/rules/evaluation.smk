@@ -7,28 +7,28 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 GS = GSRemoteProvider()
 
 
-rule MAPS_GCP:
-    # Compute MAPS on Google Cloud
+rule count_singletons_GCP:
+    # Count singeltons on Google Cloud
     input:
-        intervals=expand(
-            rules.merge_UTR_intervals.output.intervals,
-            annotation=interval_annotations
-        ),
+        intervals=rules.merge_UTR_intervals.output.intervals,
     output:
         maps=config["bucket"] + '/{chr_subset}/variant_count.tsv',
     params:
-        gnomad_prepare='utr3variants/annotate_gnomad.py',
-        maps_score='utr3variants/maps.py',
-        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+        script='workflow/scripts/count_singletons_gcp.py',
+        annotate_gnomad='utr3variants/annotate_gnomad.py',
+        maps='utr3variants/maps.py',
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+        annotations=interval_annotations
     shell:
         """
         INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
         gsutil cp {input} $INTERVAL_PATH
         hailctl dataproc submit {config[cluster]} \
-            --pyfiles {params.gnomad_prepare},{params.maps_score} \
-            scripts/maps_gcp.py  \
+            --pyfiles {params.annotate_gnomad},{params.maps} \
+            {params.script}  \
                 -o gs://{output.maps} \
                 --intervals $INTERVAL_PATH \
+                --annotations {params.annotations} \
                 --gnomAD_ht {config[gnomAD][gnomAD_ht]} \
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
@@ -69,7 +69,7 @@ def count_file(wildcards):
     """
     return rules.count_variants_local.output.counts \
         if wildcards.run_location == 'local' \
-        else GS.remote(rules.MAPS_GCP.output.maps,keep_local=True)
+        else GS.remote(rules.count_singletons_GCP.output.maps,keep_local=True)
 
 
 rule MAPS:

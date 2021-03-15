@@ -9,9 +9,8 @@ Count variants, singletons and determine expected singletons for MAPS score (loc
 """
 import hail as hl
 import pandas as pd
-from utr3variants.annotate_gnomad import annotate_by_intervals
+from utr3variants.annotate_gnomad import annotate_by_intervals, import_interval_table
 from utr3variants.maps import count_for_maps
-from utr3variants.utils import import_interval_table
 
 
 if __name__ == '__main__':

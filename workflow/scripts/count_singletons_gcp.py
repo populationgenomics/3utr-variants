@@ -1,36 +1,37 @@
 """
-Compute MAPS on UTR variants of gnomAD hail table in GCP
-Functions imported from scripts/prepare_gnomad.py and scripts/maps_score.py
-
+Count variants on GCP
     Input:
-        UTR interval bed file
+        UTR interval TSV file with all annotation columns
         gnomAD hail table
         context hail table
         mutation hail table
     Output:
-        MAPS hail table
+        Variant count hail table
 
 Note:
 The files utr3variants/annotate_gnomad.py and utr3variants/maps.py need to be copied to
 the dataproc session when running this script.
 See rules/evaluation.smk for a generic hailctl command.
 """
-
 import hail as hl
 
 # pylint: disable=E0401
-from annotate_gnomad import filter_gnomad, annotate_for_maps, annotate_by_intervals
-from maps import maps  # pylint: disable=E0401
+from annotate_gnomad import (
+    filter_gnomad,
+    annotate_for_maps,
+    annotate_by_intervals,
+    import_interval_table,
+)
+from maps import count_for_maps  # pylint: disable=E0401,E0611
 
 
 def main(args):
     """
-    Subset and annotate gnomAD hail table variants by intervals and compute MAPS score
+    Subset and annotate gnomAD hail table variants by intervals and count
     """
-
     hl.init(default_reference=args.genome_assembly)
 
-    intervals = hl.import_bed(args.intervals)
+    intervals = import_interval_table(args.intervals, 'locus_interval').persist()
     mutation_ht = hl.read_table(args.mutation_ht)
     context_ht = hl.read_table(args.context_ht)
     ht = hl.read_table(args.gnomAD_ht)
@@ -40,16 +41,17 @@ def main(args):
     ht = filter_gnomad(ht, [subset_interval])
 
     print('Annotate')
-    ht = annotate_for_maps(ht, context_ht, mutation_ht)
-    ht = annotate_by_intervals(ht, intervals, new_column='UTR_group')
+    ht = annotate_for_maps(ht, context_ht)
+    for annotation in args.annotations:
+        ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
 
-    print('MAPS score')
-    maps_ht = maps(ht, grouping=['UTR_group'])
+    print('Count variants')
+    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=args.annotations)
     if args.verbose:
-        maps_ht.show()
+        count_ht.show()
 
     print('save...')
-    maps_ht.export(args.output)
+    count_ht.export(args.output)
 
 
 if __name__ == '__main__':
@@ -58,7 +60,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Compute MAPS score')
     parser.add_argument('-o', '--output', required=True, help='Output TSV file')
     parser.add_argument(
-        '--intervals', required=True, help='Interval text file for subsetting gnomAD'
+        '--intervals',
+        required=True,
+        help='Comma-separate list of annotated interval bed files',
+    )
+    parser.add_argument(
+        '--annotations',
+        nargs='+',
+        help='List names of annotations in --intervals file columns to include',
+        required=True,
     )
     parser.add_argument(
         '--gnomAD_ht',

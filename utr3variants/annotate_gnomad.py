@@ -6,6 +6,19 @@ import gnomad.utils.vep
 import hail as hl
 
 
+def import_interval_table(paths, interval_field, **kwargs):
+    """
+    Import table containing a locus interval field
+    :param paths: paths to be passed to hail.import_table
+    :param interval_field: name of interval field to be parsed by
+        hail.parse_locus_interval and keyed by
+    """
+    ht = hl.import_table(paths, **kwargs)
+    return ht.transmute(
+        **{interval_field: hl.parse_locus_interval(ht[interval_field])}
+    ).key_by(interval_field)
+
+
 def annotate_by_intervals(
     ht, intervals_ht, annotation_column='target', new_column=None
 ) -> hl.Table:
@@ -28,7 +41,7 @@ def annotate_by_intervals(
     )
     return ht.annotate(  # take the first one we see, or default value
         **{new_column: hl.coalesce(ht.all_values.first(), 'other_variant')}
-    )
+    ).drop('all_values')
 
 
 def filter_gnomad(
