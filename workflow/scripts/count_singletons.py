@@ -11,6 +11,7 @@ import hail as hl
 import pandas as pd
 from utr3variants.annotate_gnomad import annotate_by_intervals
 from utr3variants.maps import count_for_maps
+from utr3variants.utils import import_interval_table
 
 
 if __name__ == '__main__':
@@ -28,16 +29,17 @@ if __name__ == '__main__':
     )
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
+    intervals = import_interval_table(interval_file, 'locus_interval').persist()
 
-    interval_annotations = snakemake.params.interval_annotations
-    interval_files = snakemake.input.intervals
-    for annotation, file in zip(interval_annotations, interval_files):
-        intervals = hl.import_bed(file.__str__())
-        ht = annotate_by_intervals(ht, intervals, new_column=annotation)
+    annotations = snakemake.params.annotations
+    for annotation in annotations:
+        ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
 
-    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=interval_annotations)
+    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=annotations)
 
     print('save...')
     count_ht.export(counts_out)
+
+    # Preview of counts table
     count_df = pd.read_table(counts_out)
     print(count_df.head())

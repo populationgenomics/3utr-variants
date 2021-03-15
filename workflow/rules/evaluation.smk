@@ -52,15 +52,12 @@ rule prepare_gnomAD:
 rule count_variants_local:
     # Count variants locally
     input:
-        intervals=expand(
-            rules.merge_UTR_intervals.output.intervals,
-            annotation=interval_annotations
-        ),
+        intervals=rules.merge_UTR_intervals.output.intervals,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
         counts=output_root / '{chr_subset}/MAPS/local/variant_counts.tsv',
     params:
-        interval_annotations=interval_annotations
+        annotations=interval_annotations
     log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
     script: '../scripts/count_singletons.py'
 

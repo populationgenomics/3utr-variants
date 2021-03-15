@@ -41,9 +41,8 @@ rule merge_UTR_intervals:
         hexamers=rules.extract_PolyA_DB.output.PAS_hexamers,
         pas=rules.extract_PolyA_DB.output.PAS
     output:
-        intervals=interval_out_dir / 'merged_UTR_intervals-{annotation}.bed'
-    wildcard_constraints:
-        annotation='\w+'
+        intervals=interval_out_dir / 'merged_UTR_intervals.tsv'
     params:
-        chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr'
+        chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr',
+        annotations=interval_annotations
     script: '../scripts/merge_utr_intervals.py'
