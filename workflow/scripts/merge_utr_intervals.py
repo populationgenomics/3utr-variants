@@ -46,7 +46,7 @@ if __name__ == '__main__':
         other_utr = (
             utrs.subtract(hexamers)  # pylint: disable=too-many-function-args
             .subtract(pas)
-            .each(rename_interval, name='other_UTR||')
+            .each(rename_interval, name='other_UTR|other_UTR|other_UTR')
             .saveas(f'{tmp_dir}/other_utr.bed')
         )
         hexamers = hexamers.each(
