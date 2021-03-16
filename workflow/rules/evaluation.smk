@@ -33,7 +33,8 @@ rule count_singletons_GCP:
                 --context_ht {config[gnomAD][context_ht]} \
                 --mutation_ht {config[gnomAD][mutation_rate_ht]} \
                 --genome_assembly {config[genome_assembly]} \
-                --chr_subset {params.chr_subset}
+                --chr_subset {params.chr_subset} \
+                --skip_checks {config[gnomAD][skip_checks]}
         gsutil rm $INTERVAL_PATH
         """
 

@@ -31,14 +31,14 @@ def main(args):
     """
     hl.init(default_reference=args.genome_assembly)
 
-    intervals = import_interval_table(args.intervals, 'locus_interval').persist()
+    intervals = import_interval_table(args.intervals, 'locus_interval')
     mutation_ht = hl.read_table(args.mutation_ht)
     context_ht = hl.read_table(args.context_ht)
     ht = hl.read_table(args.gnomAD_ht)
 
-    print('Filter')
-    subset_interval = hl.parse_locus_interval(args.chr_subset)
-    ht = filter_gnomad(ht, [subset_interval])
+    if args.chr_subset != 'all':
+        print('Filter')
+        ht = filter_gnomad(ht, [hl.parse_locus_interval(args.chr_subset)])
 
     print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
@@ -46,12 +46,19 @@ def main(args):
         ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
 
     print('Count variants')
-    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=args.annotations)
-    if args.verbose:
-        count_ht.show()
+    count_ht = count_for_maps(
+        ht,
+        mutation_ht,
+        additional_grouping=args.annotations,
+        skip_mut_check=args.skip_checks,
+    )
 
     print('save...')
     count_ht.export(args.output)
+
+    if args.verbose:
+        count_ht = hl.import_table(args.output)
+        count_ht.show()
 
 
 if __name__ == '__main__':
@@ -100,5 +107,11 @@ if __name__ == '__main__':
         required=False,
         action='store_true',
         help='Show more output',
+    )
+    parser.add_argument(
+        '--skip_checks',
+        required=False,
+        default=True,
+        help='Skip mutation check',
     )
     main(args=parser.parse_args())
