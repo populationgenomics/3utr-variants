@@ -44,31 +44,6 @@ def annotate_by_intervals(
     ).drop('all_values')
 
 
-def filter_gnomad(
-    ht: hl.Table,
-    intervals: Union[hl.Table, List[hl.IntervalExpression]],
-    verbose: bool = True,
-) -> hl.Table:
-    """
-    Filter gnomAD dataset by interval expressions and according to
-    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
-
-    :params ht: gnomAD hail table to be annotated
-    :params intervals: intervals to filter by as hl.Table or list of
-        hl.IntervalExpression
-    :params verbose: whether to print a message after filtering
-    """
-    if isinstance(intervals, hl.Table):
-        ht = ht.filter(hl.is_defined(intervals[ht.locus]))
-    elif all(isinstance(x, hl.IntervalExpression) for x in intervals):
-        ht = hl.filter_intervals(ht, intervals)
-    ht = ht.filter(hl.len(ht.filters) == 0)
-    ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
-    if verbose:
-        print(f'entries in gnomAD after filtering: {ht.count()}')
-    return ht
-
-
 def annotate_for_maps(ht, context_ht) -> hl.Table:
     """
     Include annotations for worst consequence & context, analogue to
@@ -84,6 +59,33 @@ def annotate_for_maps(ht, context_ht) -> hl.Table:
         ht=ht.annotate(context=context_ht.context, methylation=context_ht.methylation),
         trimer=True,
     )
+
+
+def filter_gnomad(
+    ht: hl.Table,
+    intervals: Union[hl.Table, List[hl.IntervalExpression]] = None,
+    verbose: bool = True,
+) -> hl.Table:
+    """
+    Filter gnomAD dataset by interval expressions and according to
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
+
+    :params ht: gnomAD hail table to be annotated
+    :params intervals: intervals to filter by as hl.Table or list of
+        hl.IntervalExpression
+    :params verbose: whether to print a message after filtering
+    """
+    if isinstance(intervals, hl.Table):
+        ht = ht.filter(hl.is_defined(intervals[ht.locus]))
+    elif isinstance(intervals, list) and all(
+        isinstance(x, hl.IntervalExpression) for x in intervals
+    ):
+        ht = hl.filter_intervals(ht, intervals)
+    ht = ht.filter(hl.len(ht.filters) == 0)
+    ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
+    if verbose:
+        print(f'entries in gnomAD after filtering: {ht.count()}')
+    return ht
 
 
 ########################################################################################

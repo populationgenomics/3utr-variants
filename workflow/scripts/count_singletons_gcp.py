@@ -36,9 +36,11 @@ def main(args):
     context_ht = hl.read_table(args.context_ht)
     ht = hl.read_table(args.gnomAD_ht)
 
-    if args.chr_subset != 'all':
-        print('Filter')
-        ht = filter_gnomad(ht, [hl.parse_locus_interval(args.chr_subset)])
+    print('Filter')
+    chr_subset = (
+        [hl.parse_locus_interval(args.chr_subset)] if args.chr_subset != 'all' else None
+    )
+    ht = filter_gnomad(ht, chr_subset, verbose=False)
 
     print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
