@@ -2,7 +2,7 @@
 MAPS score functions from https://github.com/macarthur-lab/gnomad_lof
 """
 import sys
-from typing import Union
+from typing import Union, Iterable
 import hail as hl
 
 
@@ -106,34 +106,14 @@ def count_variants(
             return ht.aggregate(hl.struct(**agg))
 
 
-def maps(
-    ht: hl.Table,
-    mutation_ht: hl.Table,  # pylint: disable=W0621
-    additional_grouping=None,  # change from mutable default to None
-    singleton_expression: hl.expr.BooleanExpression = None,
-    skip_worst_csq: bool = False,
-    skip_mut_check: bool = False,  # added
-) -> hl.Table:
+def add_mutation_rate(ht: hl.Table, mutation_ht: hl.Table, mut_check: bool = True):
     """
-    adapted from:
-    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L267
-
-    :param skip_mut_check: skip checking for mutation rate ht
+    Add mutation rates indexed by context, ref/alt alleles & methylation context
+    :param ht: hail table to be annotated
+    :param mutation_ht: mutation rates indexed by context, ref/alt & methylation_context
+    :param mut_check: whether to check for missing mutation rates. This check can be
+        skipped to save time e.g. if it has already been done before
     """
-    if additional_grouping is None:
-        additional_grouping = []  # use mutable default
-    if not skip_worst_csq:
-        additional_grouping.insert(0, 'worst_csq')
-
-    print('Count variants')
-    ht = count_variants(
-        ht,
-        count_singletons=True,
-        additional_grouping=additional_grouping,
-        force_grouping=True,
-        singleton_expression=singleton_expression,
-    )
-
     ht = ht.annotate(
         mu=mutation_ht[
             hl.struct(
@@ -142,12 +122,11 @@ def maps(
                 alt=ht.alt,
                 methylation_level=ht.methylation_level,
             )
-        ].mu_snp,
-        ps=ht.singleton_count / ht.variant_count,
+        ].mu_snp
     )
 
     # edit: force skip check if certain mutation ht is fine
-    if skip_mut_check:
+    if mut_check:
         print('Check mutation rates...')
         if not ht.all(hl.is_defined(ht.mu)):
             print('Some mu were not found...')
@@ -158,29 +137,78 @@ def maps(
             )
             sys.exit(1)
 
-    syn_ps_ht = ht.filter(ht.worst_csq == 'synonymous_variant')
-    syn_ps_ht = syn_ps_ht.group_by(syn_ps_ht.mu).aggregate(
-        singleton_count=hl.agg.sum(syn_ps_ht.singleton_count),
-        variant_count=hl.agg.sum(syn_ps_ht.variant_count),
-    )
-    syn_ps_ht = syn_ps_ht.annotate(
-        ps=syn_ps_ht.singleton_count / syn_ps_ht.variant_count
-    )
+    return ht
 
-    print('Fit linear model...')
-    lm = syn_ps_ht.aggregate(
-        hl.agg.linreg(
-            syn_ps_ht.ps, [1, syn_ps_ht.mu], weight=syn_ps_ht.variant_count
-        ).beta
-    )
-    print(f'Got MAPS calibration model of: slope: {lm[1]}, intercept: {lm[0]}')
-    ht = ht.annotate(expected_singletons=(ht.mu * lm[1] + lm[0]) * ht.variant_count)
 
-    print('Annotate MAPS statistics...')
-    agg_ht = ht.group_by(*additional_grouping).aggregate(
+def fit_mutability(count_ht: hl.Table, worst_csq='synonymous_variant'):
+    """
+    Subset to worst consequence and fit model to mutation rates
+    :param count_ht: must contain 'worst_csq', 'variant_counts' and 'singleton_counts'
+    :param worst_csq: name of worst consequence to normalise by
+    :return: (slope, intercept) of mutability fit
+    """
+    ht = count_ht.filter(count_ht.worst_csq == worst_csq)
+    ht = ht.group_by(ht.mu).aggregate(
         singleton_count=hl.agg.sum(ht.singleton_count),
-        expected_singletons=hl.agg.sum(ht.expected_singletons),
         variant_count=hl.agg.sum(ht.variant_count),
+    )
+    ht = ht.annotate(ps=ht.singleton_count / ht.variant_count)
+    print('Fit linear model...')
+    intercept, slope = ht.aggregate(
+        hl.agg.linreg(ht.ps, [1, ht.mu], weight=ht.variant_count).beta
+    )
+    print(f'Got MAPS calibration model of: slope: {slope}, intercept: {intercept}')
+    return slope, intercept
+
+
+def count_for_maps(
+    ht: hl.Table,
+    mutation_ht: hl.Table,  # pylint: disable=W0621
+    additional_grouping=None,  # change from mutable default to None
+    singleton_expression: hl.expr.BooleanExpression = None,
+    skip_mut_check: bool = False,  # added
+) -> hl.Table:
+    """
+    Count singletons aggregated by provided grouping & provide expected singleton counts
+    adapted from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L267
+    :param ht: gnomAD variant hail table, must contain 'worst_csq'
+    :param mutation_ht: mutation rates table
+    :param additional_grouping: additional grouping to aggregate by
+    :param singleton_expression: singleton definition
+    :param skip_mut_check: skip checking for mutation rate ht
+    """
+    if additional_grouping is None:
+        additional_grouping = []
+    additional_grouping.insert(0, 'worst_csq')
+    ht = count_variants(
+        ht,
+        count_singletons=True,
+        additional_grouping=additional_grouping,
+        force_grouping=True,
+        singleton_expression=singleton_expression,
+    )
+    ht = add_mutation_rate(ht, mutation_ht, mut_check=not skip_mut_check)
+    slope, intercept = fit_mutability(ht)
+    return ht.annotate(
+        expected_singletons=(ht.mu * slope + intercept) * ht.variant_count
+    )
+
+
+def aggregate_maps_hail(count_ht: hl.Table, grouping: Iterable[str]) -> hl.Table:
+    """
+    Aggregate MAPS scores of variant count hail table from count_for_maps()
+    adapted from:
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint_utils/generic.py#L267
+
+    :param count_ht: contains variant counts, singleton counts and expected singletons
+    :param grouping: names of annotation columns in count_ht to aggregate by
+    :return: hail table with aggregated MAPS statistics
+    """
+    agg_ht = count_ht.group_by(*grouping).aggregate(
+        singleton_count=hl.agg.sum(count_ht.singleton_count),
+        expected_singletons=hl.agg.sum(count_ht.expected_singletons),
+        variant_count=hl.agg.sum(count_ht.variant_count),
     )
     agg_ht = agg_ht.annotate(
         ps=agg_ht.singleton_count / agg_ht.variant_count,

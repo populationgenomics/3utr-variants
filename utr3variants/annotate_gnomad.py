@@ -1,9 +1,22 @@
 """
 Annotation functions for gnomAD hail table
 """
-from typing import Union, Any
+from typing import Union, List
 import gnomad.utils.vep
 import hail as hl
+
+
+def import_interval_table(paths, interval_field, **kwargs):
+    """
+    Import table containing a locus interval field
+    :param paths: paths to be passed to hail.import_table
+    :param interval_field: name of interval field to be parsed by
+        hail.parse_locus_interval and keyed by
+    """
+    ht = hl.import_table(paths, **kwargs)
+    return ht.transmute(
+        **{interval_field: hl.parse_locus_interval(ht[interval_field])}
+    ).key_by(interval_field)
 
 
 def annotate_by_intervals(
@@ -28,12 +41,34 @@ def annotate_by_intervals(
     )
     return ht.annotate(  # take the first one we see, or default value
         **{new_column: hl.coalesce(ht.all_values.first(), 'other_variant')}
+    ).drop('all_values')
+
+
+def annotate_for_maps(ht, context_ht) -> hl.Table:
+    """
+    Include annotations for worst consequence & context, analogue to
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
+
+    :param ht: gnomAD hail table to be annotated
+    :param context_ht: context data to include as annotation
+    :return: annotated hail table
+    """
+    ht = get_worst_consequence_with_non_coding(ht)
+    context_ht = context_ht[ht.key]
+    return prepare_ht(
+        ht=ht.annotate(context=context_ht.context, methylation=context_ht.methylation),
+        trimer=True,
     )
 
 
-def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Table:
+def filter_gnomad(
+    ht: hl.Table,
+    intervals: Union[hl.Table, List[hl.IntervalExpression]] = None,
+    verbose: bool = True,
+) -> hl.Table:
     """
-    Annotate gnomAD hail table with necessary
+    Filter gnomAD dataset by interval expressions and according to
+    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
 
     :params ht: gnomAD hail table to be annotated
     :params intervals: intervals to filter by as hl.Table or list of
@@ -42,29 +77,15 @@ def filter_gnomad(ht: hl.Table, intervals: Any, verbose: bool = True) -> hl.Tabl
     """
     if isinstance(intervals, hl.Table):
         ht = ht.filter(hl.is_defined(intervals[ht.locus]))
-    elif all(isinstance(x, hl.IntervalExpression) for x in intervals):
+    elif isinstance(intervals, list) and all(
+        isinstance(x, hl.IntervalExpression) for x in intervals
+    ):
         ht = hl.filter_intervals(ht, intervals)
     ht = ht.filter(hl.len(ht.filters) == 0)
     ht = gnomad.utils.vep.filter_vep_to_canonical_transcripts(ht)
     if verbose:
         print(f'entries in gnomAD after filtering: {ht.count()}')
     return ht
-
-
-def annotate_for_maps(ht, context_ht) -> hl.Table:
-    """
-    Include annotations for MAPS analogue to
-    https://github.com/macarthur-lab/gnomad_lof/blob/master/constraint/summary_statistics.py#L96  # noqa: E501
-
-    :param ht: gnomAD hail table to be annotated
-    :param context_ht: context data to include as annotation
-    """
-    ht = get_worst_consequence_with_non_coding(ht)
-    context_ht = context_ht[ht.key]
-    return prepare_ht(
-        ht=ht.annotate(context=context_ht.context, methylation=context_ht.methylation),
-        trimer=True,
-    )
 
 
 ########################################################################################

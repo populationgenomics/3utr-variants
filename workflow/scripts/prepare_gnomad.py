@@ -16,7 +16,6 @@ if __name__ == '__main__':
         log=snakemake.log['hail'],
         default_reference=snakemake.config['genome_assembly'],
     )
-
     context_ht = hl.read_table(snakemake.config['gnomAD']['context_ht'])
     ht = hl.read_table(snakemake.config['gnomAD']['gnomAD_ht'])
 

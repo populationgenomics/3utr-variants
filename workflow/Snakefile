@@ -8,6 +8,7 @@ from pathlib import Path
 configfile: 'configs/config.yml'
 output_root = Path(config['output_root']).resolve()
 config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else 'hg38'
+interval_annotations = ['overall', 'hexamer', 'conserved']
 
 include: 'rules/download_data.smk'
 include: 'rules/extract_UTR_features.smk'
@@ -17,6 +18,7 @@ rule all:
     input:
         expand(
             rules.plots.output,
+            variant_subset=interval_annotations + ['worst_csq'],
             run_location='local' if config['local'] else 'gcp',
             chr_subset=config['chr_subsets'].keys()
         )

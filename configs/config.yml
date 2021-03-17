@@ -1,18 +1,21 @@
 ---
 output_root: results/output
 bucket: cpg-utr-variants-test  # name of storage container to run in
-cluster: utr-variant-chr22  # name of dataproc cluster instance
+cluster: utr-variants  # name of dataproc cluster instance
 local: false
 genome_assembly: GRCh37
 chr_subsets:
-    chr22: '22:1-51304566' # end: 51304566
-    #chr1: '1:1-249250621'
+    # chr22: '22:1-51304566' # end: 51304566
+    # chr22_small: '22:1-17304566'
+    # chr1: '1:1-end'
+    genome: 'all'
 gnomAD:
   version: 2.1.1
   gnomAD_ht: gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht
   context_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/context/Homo_sapiens_assembly19.fasta.snps_only.vep_20181129.ht
   #coverage_ht: gs://gcp-public-data--gnomad/release/2.1/coverage/exomes/gnomad.exomes.r2.1.coverage.ht
   mutation_rate_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/model/mutation_rate_methylation_bins.ht
+  skip_checks: True
 databases:
   APAatlas_DaPars:
     url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
