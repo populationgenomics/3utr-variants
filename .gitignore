@@ -4,6 +4,8 @@ resources/annotations
 
 .idea/
 .Rhistory
+.Rproj.user
+*.Rproj
 .snakemake/
 
 # Byte-compiled / optimized / DLL files

@@ -1,0 +1,7 @@
+name: utr-variants-r
+channels:
+  - r
+dependencies:
+  - r
+  - r-data.table
+  - r-ggplot2
