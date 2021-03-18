@@ -9,6 +9,8 @@ configfile: 'configs/config.yml'
 output_root = Path(config['output_root']).resolve()
 config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else 'hg38'
 interval_annotations = ['overall', 'hexamer', 'conserved']
+chr_subsets = config['chr_subsets'].keys()
+run_locations = 'local' if config['local'] else 'gcp'
 
 include: 'rules/download_data.smk'
 include: 'rules/extract_UTR_features.smk'
@@ -18,9 +20,14 @@ rule all:
     input:
         expand(
             rules.plots.output,
-            variant_subset=interval_annotations + ['worst_csq'],
-            run_location='local' if config['local'] else 'gcp',
-            chr_subset=config['chr_subsets'].keys()
+            annotation=interval_annotations + ['worst_csq'],
+            run_location=run_locations,
+            chr_subset=chr_subsets
+        ),
+        expand(
+            rules.plots_all.output,
+            run_location=run_locations,
+            chr_subset=chr_subsets
         )
 
 rule dependency:

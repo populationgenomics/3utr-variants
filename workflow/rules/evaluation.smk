@@ -56,7 +56,7 @@ rule count_variants_local:
         intervals=rules.merge_UTR_intervals.output.intervals,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
-        counts=output_root / '{chr_subset}/MAPS/local/variant_counts.tsv',
+        counts=output_root / '{chr_subset}/local/variant_counts.tsv',
     params:
         annotations=interval_annotations
     log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
@@ -78,10 +78,10 @@ rule MAPS:
     input:
         counts=count_file
     output:
-        maps=output_root / '{chr_subset}/MAPS/{run_location}/MAPS_{variant_subset}.tsv',
+        maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.tsv',
     log:
         hail=str(
-            output_root / 'logs/{run_location}_{chr_subset}_{variant_subset}_MAPS.log'
+            output_root / 'logs/{chr_subset}_{run_location}_{annotation}_MAPS.log'
         )
     script: '../scripts/maps.py'
 
@@ -95,48 +95,43 @@ def gather_files(wildcards, target, **kwargs):
     return GS.remote(expand(target.__str__(),**kwargs),keep_local=True)
 
 
-# rule gather_MAPS:
-#     # Merge different MAPS results into single table
-#     input:
-#         lambda wildcards: gather_files(
-#             wildcards,
-#             rules.MAPS.output.maps,
-#             variant_subset=variant_subsets.keys(),
-#             allow_missing=True
-#         )
-#     output: output_root / '{chr_subset}/MAPS/all_{run_location}.tsv'
-#     run:
-#         import pandas as pd
-#
-#         df_list = []
-#         for variant_subset, file in zip(variant_subsets.keys(),input):
-#             df = pd.read_table(file.__str__(),sep='\t')
-#             df['variant_subset'] = variant_subset
-#             df_list.append(df)
-#         df_all = pd.concat(df_list)
-#         df_all.to_csv(output[0],index=False,sep='\t')
+rule gather_MAPS:
+    # Merge different MAPS results into single table
+    input:
+        lambda wildcards: expand(
+            rules.MAPS.output.maps,
+            annotation=interval_annotations+['worst_csq'],
+            allow_missing=True
+        )
+    output: output_root / '{chr_subset}/{run_location}/MAPS.tsv'
+    run:
+        import pandas as pd
+
+        df_list = []
+        for annotation, file in zip(interval_annotations+['worst_csq'],input):
+            df = pd.read_table(file.__str__(),sep='\t')
+            df['annotation'] = annotation
+            df_list.append(df)
+        df_all = pd.concat(df_list)
+        df_all.to_csv(output[0],index=False,sep='\t')
 
 
 rule plots:
     input: rules.MAPS.output.maps
     output:
-        maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_{variant_subset}.png'
+        maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.png'
     params:
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
     script: '../scripts/plots_single.py'
 
 
-# rule plots:
-#     # Plot all MAPS results in single plot
-#     input:
-#         #maps=rules.gather_MAPS.output,
-#         single_plots=expand(
-#             rules.plot_single.output,
-#             variant_subset=interval_annotations,
-#             allow_missing=True
-#         )
-#     #output:
-#         #maps=output_root / '{chr_subset}/plots/{run_location}/MAPS_all.png'
-#     #params:
-#     #   chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
-#     script: '../scripts/plots.py'
+rule plots_all:
+    # Plot all MAPS results in single plot
+    input:
+        maps=rules.gather_MAPS.output
+    output:
+        maps=output_root / '{chr_subset}/{run_location}/MAPS.png'
+    params:
+      chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+      annotations=interval_annotations
+    script: '../scripts/plots.py'

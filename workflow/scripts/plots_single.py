@@ -9,7 +9,7 @@ import pandas as pd
 from plotnine import *  # pylint: disable=W0614,W0401
 
 chr_subset = snakemake.params['chr_subset']
-annotation = snakemake.wildcards.variant_subset
+annotation = snakemake.wildcards.annotation
 df = pd.read_table(snakemake.input[0], sep='\t')
 
 df = df[df['variant_count'] >= 10]
@@ -27,9 +27,8 @@ maps_plot = (
         width=0.1,
         position=point_position,
     )
-    + geom_text(aes(label='variant_count'), size=12, position=point_position)
+    # + geom_text(aes(label='variant_count'), size=12, position=point_position)
     + geom_hline(yintercept=0, color='grey')
-    # + facet_grid('interval_set~.')
     + ggtitle(title=title)
     # + scale_y_continuous(breaks=breaks)
     + scale_color_brewer(type="qual", palette='Dark2')
