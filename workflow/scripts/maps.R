@@ -23,7 +23,9 @@ maps <- function(count_dt, grouping) {
 
 dt <- fread(snakemake@input$counts)
 
-chr_subset <- snakemake@params$chr_subset
+chr_subset <- paste0(
+  snakemake@wildcards$chr_subset, ' (', snakemake@params$chr_subset, ')'
+)
 aggregations <- strsplit(snakemake@wildcards$aggregation, '-')[[1]]
 
 dt <- maps(dt, grouping = aggregations)
@@ -38,7 +40,13 @@ new_columns <- c('anno_x', 'color', 'facet')[seq_along(aggregations)]
 setnames(dt, old = aggregations, new = new_columns)
 # dt[, anno_x := paste0(anno_x, '\n(', variant_count, ')')]
 
-title <- paste0('MAPS on: ', snakemake@wildcards$chr_subset, ' (', chr_subset, ')')
+# Flatten for certain x-values
+if ('facet' %in% names(dt) & aggregations[1] %in% c('hexamer', 'conserved')) {
+  dt_lines <- dt[facet %in% anno_x, .(color, maps)]
+  dt <- dt[!facet %in% anno_x]
+}
+
+title <- paste('MAPS on', chr_subset)
 dodge_width <- 0.8
 
 if('color' %in% names(dt)) {
@@ -48,7 +56,16 @@ if('color' %in% names(dt)) {
 }
 
 if ('facet' %in% names(dt)) {
-  p <- p + facet_grid('facet~.')
+  p <- p +
+    facet_grid('facet~.') +
+    ggtitle(title, subtitle = paste('Facet:', aggregations[3]))
+  if (exists('dt_lines')) {
+    p <- p + geom_hline(
+      aes(yintercept = maps, color = color),
+      data = dt_lines,
+      linetype = 'dashed'
+    )
+  }
 }
 
 p <- p +
@@ -63,10 +80,10 @@ p <- p +
   scale_color_brewer(palette = 'Set1') +
   theme_classic() +
   theme(
-    legend.position = 'bottom',
+    legend.position = 'right',
     legend.title = element_blank(),
     axis.text.x = element_text(angle = 90, hjust = 1),
     axis.ticks = element_blank(),
   )
-
+p
 ggsave(snakemake@output$png, width = 8, height = 6)
