@@ -18,7 +18,7 @@ rule count_singletons_GCP:
         annotate_gnomad='utr3variants/annotate_gnomad.py',
         maps='utr3variants/maps.py',
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        annotations=interval_annotations
+        annotations=INTERVAL_ANNOTATIONS
     shell:
         """
         INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
@@ -58,7 +58,7 @@ rule count_variants_local:
     output:
         counts=output_root / '{chr_subset}/local/variant_counts.tsv',
     params:
-        annotations=interval_annotations
+        annotations=INTERVAL_ANNOTATIONS,
     log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
     script: '../scripts/count_singletons.py'
 
@@ -78,12 +78,13 @@ rule MAPS:
     input:
         counts=count_file
     output:
-        maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.tsv',
-    log:
-        hail=str(
-            output_root / 'logs/{chr_subset}_{run_location}_{annotation}_MAPS.log'
-        )
-    script: '../scripts/maps.py'
+        tsv=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.tsv',
+        png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
+    params:
+        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+    conda:
+        "../envs/utr-variants-r.yml"
+    script: '../scripts/maps.R'
 
 
 def gather_files(wildcards, target, **kwargs):
@@ -95,43 +96,43 @@ def gather_files(wildcards, target, **kwargs):
     return GS.remote(expand(target.__str__(),**kwargs),keep_local=True)
 
 
-rule gather_MAPS:
-    # Merge different MAPS results into single table
-    input:
-        lambda wildcards: expand(
-            rules.MAPS.output.maps,
-            annotation=interval_annotations+['worst_csq'],
-            allow_missing=True
-        )
-    output: output_root / '{chr_subset}/{run_location}/MAPS.tsv'
-    run:
-        import pandas as pd
-
-        df_list = []
-        for annotation, file in zip(interval_annotations+['worst_csq'],input):
-            df = pd.read_table(file.__str__(),sep='\t')
-            df['annotation'] = annotation
-            df_list.append(df)
-        df_all = pd.concat(df_list)
-        df_all.to_csv(output[0],index=False,sep='\t')
-
-
-rule plots:
-    input: rules.MAPS.output.maps
-    output:
-        maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.png'
-    params:
-        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
-    script: '../scripts/plots_single.py'
-
-
-rule plots_all:
-    # Plot all MAPS results in single plot
-    input:
-        maps=rules.gather_MAPS.output
-    output:
-        maps=output_root / '{chr_subset}/{run_location}/MAPS.png'
-    params:
-      chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-      annotations=interval_annotations
-    script: '../scripts/plots.py'
+# rule gather_MAPS:
+#     # Merge different MAPS results into single table
+#     input:
+#         lambda wildcards: expand(
+#             rules.MAPS.output.maps,
+#             annotation=interval_annotations+['worst_csq'],
+#             allow_missing=True
+#         )
+#     output: output_root / '{chr_subset}/{run_location}/MAPS.tsv'
+#     run:
+#         import pandas as pd
+#
+#         df_list = []
+#         for annotation, file in zip(interval_annotations+['worst_csq'],input):
+#             df = pd.read_table(file.__str__(),sep='\t')
+#             df['annotation'] = annotation
+#             df_list.append(df)
+#         df_all = pd.concat(df_list)
+#         df_all.to_csv(output[0],index=False,sep='\t')
+#
+#
+# rule plots:
+#     input: rules.MAPS.output.maps
+#     output:
+#         maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.png'
+#     params:
+#         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
+#     script: '../scripts/plots_single.py'
+#
+#
+# rule plots_all:
+#     # Plot all MAPS results in single plot
+#     input:
+#         maps=rules.gather_MAPS.output
+#     output:
+#         maps=output_root / '{chr_subset}/{run_location}/MAPS.png'
+#     params:
+#       chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+#       annotations=interval_annotations
+#     script: '../scripts/plots.py'
