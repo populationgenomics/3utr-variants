@@ -26,7 +26,9 @@ MAPS_AGGREGATIONS = [
     # x-axis and colour by 'overall', but does not facet the plot
     'hexamer-conserved-overall',
     'hexamer-overall-conserved',
-    'overall-conserved',
+    'conserved',
+    'conserved-overall',
+    'hexamer-conserved',
     'overall',
     'worst_csq'
 ]
