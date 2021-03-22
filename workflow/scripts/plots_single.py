@@ -1,4 +1,5 @@
 """
+DEPRECATED
 Plots for a single variant subset
     Input: TSV file containing MAPS scores
     Output: Plot of MAPS for all consequences

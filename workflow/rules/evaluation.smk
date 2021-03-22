@@ -76,7 +76,8 @@ def count_file(wildcards):
 rule MAPS:
     # Compute MAPS locally
     input:
-        counts=count_file
+        counts=count_file,
+        utils='workflow/scripts/utils.R'
     output:
         tsv=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.tsv',
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
