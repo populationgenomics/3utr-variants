@@ -44,5 +44,5 @@ rule merge_UTR_intervals:
         intervals=interval_out_dir / 'merged_UTR_intervals.tsv'
     params:
         chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr',
-        annotations=interval_annotations
+        annotations=INTERVAL_ANNOTATIONS
     script: '../scripts/merge_utr_intervals.py'

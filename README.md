@@ -38,7 +38,7 @@ A good resource on the idea of Snakemake and how it works is its official [docum
 The dependencies are available as a conda environment.
 
 ```commandline
-conda env create -f environment.yml
+conda env create -f workflow/envs/environment.yml
 conda activate utr-variants
 ```
 
@@ -80,11 +80,27 @@ For a dry run, you can supply the `-n` argument:
 snakemake -n
 ```
 
-In order to executed the steps listed in the dry run, use `-j` or `--cores` to set the number of cores available to the pipeline:
+In order to execute the steps listed in the dry run, use `-j` or `--cores` to set the number of cores available to the pipeline:
 
 ```commandline
 snakemake -j 10
 ```
+
+Plotting rules have a separately defined conda environment for R dependencies (`workflow/envs/utr-variants-r.yml`).
+In order to use this environment call the pipeline as follows:
+
+```commandline
+snakemake --use-conda -j10
+```
+
+This will create the environment once before activating for every rule call requiring it.
+You can also precompute the environment by calling
+
+```commandline
+snakemake --use-conda --conda-create-envs-only
+```
+
+See [Snakemake's documentation](https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html#integrated-package-management) for more information on integrating conda environments.
 
 ### Workflow Graph
 
