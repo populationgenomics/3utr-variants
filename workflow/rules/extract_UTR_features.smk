@@ -2,7 +2,7 @@
 Extract UTR features from different annotations
 """
 
-interval_out_dir = output_root / 'intervals'
+interval_out_dir = output_root / 'annotations'
 
 
 rule extract_Gencode_UTR:
@@ -10,7 +10,6 @@ rule extract_Gencode_UTR:
     input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
     output:
         utr=interval_out_dir / 'Gencode/3UTR.bed',
-        #pas=interval_out_dir / 'Gencode/PAS.bed'
     shell:
         """
         zcat {input} | grep three_prime_UTR | sortBed |\
@@ -27,11 +26,10 @@ rule extract_PolyA_DB:
             expand(rules.genomepy.output[0],assembly=config['assembly_ucsc'])
         )
     output:
-        PAS=interval_out_dir / 'PolyA_DB/PAS.bed',
-        PAS_context_40nt=interval_out_dir / 'PolyA_DB/40nt.bed',
-        PAS_context_100nt=interval_out_dir / 'PolyA_DB/100nt.bed',
-        PAS_hexamers=interval_out_dir / 'PolyA_DB/hexamers.bed',
-        stats=interval_out_dir / 'PolyA_DB/stats.txt'
+        intervals=interval_out_dir / 'PolyA_DB/annotations.tsv',
+        stats=interval_out_dir / 'PolyA_DB/stats.tsv'
+    params:
+        annotations=config['PolyA_DB']['annotation_columns']
     script: '../scripts/extract_polyadb.py'
 
 
