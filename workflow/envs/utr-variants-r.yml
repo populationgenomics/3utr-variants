@@ -1,7 +1,6 @@
 name: utr-variants-r
 channels:
-  - r
+  - conda-forge
 dependencies:
-  - r
   - r-data.table
   - r-ggplot2
