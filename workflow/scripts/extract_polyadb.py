@@ -93,6 +93,10 @@ def get_hexamers(
 
     hexamer_list = []
     for signal in dna_signals:
+        # annotations[hexamer_column] = signal  # rename hexamer annotation
+        # intervals = create_signal_interval(
+        #     feature, signal, sequence, name='|'.join(annotations)
+        # )
         intervals = create_signal_interval(feature, signal, sequence)
         hexamer_list.extend(intervals)
     return hexamer_list

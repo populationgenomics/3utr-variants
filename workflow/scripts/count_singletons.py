@@ -28,7 +28,7 @@ if __name__ == '__main__':
     )
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
-    intervals = import_interval_table(interval_file, 'locus_interval').persist()
+    intervals = import_interval_table(interval_file, 'locus_interval')
 
     annotations = snakemake.params.annotations
     for annotation in annotations:
