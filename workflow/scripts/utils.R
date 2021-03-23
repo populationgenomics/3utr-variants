@@ -7,6 +7,7 @@ library(tools)
 library(magrittr)
 
 ## CONSTANTS
+# from: https://github.com/macarthur-lab/gnomad_lof/blob/master/R/constants.R#L103
 lof_like <- c(
   'frameshift_variant', 'essential_splice', 'stop_gained', 'splice_donor_variant',
   'splice_acceptor_variant'
@@ -24,6 +25,7 @@ syn_like <- c(
 
 
 format_vep_category <- function(category_list) {
+  # from: https://github.com/macarthur-lab/gnomad_lof/blob/master/R/constants.R#L111
   return(category_list %>%
            gsub("_", " ", .) %>%
            gsub('stop gained', 'nonsense', .) %>%
