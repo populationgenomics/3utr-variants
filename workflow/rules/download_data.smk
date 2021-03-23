@@ -31,10 +31,10 @@ rule get_fasta:
 
 
 rule download_PolyA_DB:
-    # Download and extract PolyA_DB3 annotation
-    output: output_root / 'annotations/PolyA_DB3/human.PAS.txt'
+    # Download and extract PolyA_DB v3 annotation
+    output: output_root / 'annotations/PolyA_DB/human.PAS.txt'
     params:
-        url=config['databases']['PolyA_DB']['url']
+        url=config['PolyA_DB']['url']
     shell:
         """
         tmpdir="$(dirname "$(tempfile)")"
@@ -48,8 +48,19 @@ rule download_Gencode:
     # Download GENCODE gene annotation
     output: output_root / 'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
     params:
-        url=config['databases']['Gencode']['url']
+        url=config['Gencode']['url']
     shell:
         """
         wget -nc -P $(dirname {output}) {params.url}
+        """
+
+
+rule download_PolyASite:
+    output: output_root / 'annotations/PolyASite/atlas.clusters.2.0.GRCh38.96.bed'
+    params:
+        url = config['PolyASite']['url']
+    shell:
+        """
+        wget -nc -P $(dirname {output}) {params.url}
+        gzip -d {output}.gz
         """

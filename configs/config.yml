@@ -16,20 +16,47 @@ gnomAD:
   #coverage_ht: gs://gcp-public-data--gnomad/release/2.1/coverage/exomes/gnomad.exomes.r2.1.coverage.ht
   mutation_rate_ht: gs://gnomad-public/papers/2019-flagship-lof/v1.0/model/mutation_rate_methylation_bins.ht
   skip_checks: True
-databases:
-  APAatlas_DaPars:
-    url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
-    APA: resources/annotations/APAatlas/DaPars/PDUI.txt
-    annotation: resources/annotations/APAatlas/DaPars/hg19_refseq_extracted_3UTR.bed
-    chr_style: chr
-  APAatlas_SAAP-RS:
-    url: https://hanlab.uth.edu/static/download/matrix/RED.txt.zip
-    APA: resources/annotations/APAatlas/SAAP-RS/RED.txt
-    annotation: resources/annotations/APAatlas/SAAP-RS/RED_3UTR_annotation_hg19.txt
-    chr_style: chr
-  PolyA_DB:
-    url: https://exon.apps.wistar.org/PolyA_DB/v3/download/3.2/human_pas.zip
-    chr_style: chr
-  Gencode:
-    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh37_mapping/gencode.v36lift37.annotation.gff3.gz
-    chr_style: chr
+
+PolyA_DB:
+  url: https://exon.apps.wistar.org/PolyA_DB/v3/download/3.2/human_pas.zip
+  chr_style: chr
+  annotation_columns:
+    # Annotation fields to be added to singleton counts for aggregation
+    - hexamer_motif
+    - conservation
+    - percent_expressed
+
+Gencode:
+  url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh37_mapping/gencode.v36lift37.annotation.gff3.gz
+  chr_style: chr
+
+PolyASite:
+  url: https://polyasite.unibas.ch/download/atlas/2.0/GRCh38.96/atlas.clusters.2.0.GRCh38.96.bed.gz
+  chr_style: ''
+  ref: GRCh38
+  annotation_columns:
+    - hexamer_motif
+    - percent_expressed
+
+APAatlas_DaPars:
+  url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
+  APA: resources/annotations/APAatlas/DaPars/PDUI.txt
+  annotation: resources/annotations/APAatlas/DaPars/hg19_refseq_extracted_3UTR.bed
+  chr_style: chr
+
+APAatlas_SAAP-RS:
+  url: https://hanlab.uth.edu/static/download/matrix/RED.txt.zip
+  APA: resources/annotations/APAatlas/SAAP-RS/RED.txt
+  annotation: resources/annotations/APAatlas/SAAP-RS/RED_3UTR_annotation_hg19.txt
+  chr_style: chr
+
+aggregations:
+  # Wildcard combinations of form: {x-axis}-{color}-{facet}
+  # Each of the entries must be a valid field of the singleton count table
+  # At least one entry must be given, e.g. 'hexamer-overall' will plot 'hexamer' in the
+  # x-axis and colour by 'overall', but does not facet the plot
+  - hexamer-conserved-overall
+  - hexamer-overall-conserved
+  - conserved
+  - conserved-overall
+  - hexamer-conserved
