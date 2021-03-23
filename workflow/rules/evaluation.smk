@@ -4,6 +4,7 @@ Includes preparation of interval formats, gnomAD hail table, local & CGP runs
 """
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 
+ALL_ANNOTATIONS = config['PolyA_DB']['annotation_columns'] + ['database', 'feature']
 GS = GSRemoteProvider()
 
 
@@ -18,7 +19,7 @@ rule count_singletons_GCP:
         annotate_gnomad='utr3variants/annotate_gnomad.py',
         maps='utr3variants/maps.py',
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        annotations=INTERVAL_ANNOTATIONS
+        annotations=ALL_ANNOTATIONS
     shell:
         """
         INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
@@ -58,7 +59,7 @@ rule count_variants_local:
     output:
         counts=output_root / '{chr_subset}/local/variant_counts.tsv',
     params:
-        annotations=INTERVAL_ANNOTATIONS,
+        annotations=ALL_ANNOTATIONS,
     log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
     script: '../scripts/count_singletons.py'
 

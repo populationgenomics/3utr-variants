@@ -11,14 +11,6 @@ config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else '
 chr_subsets = config['chr_subsets'].keys()
 run_locations = 'local' if config['local'] else 'gcp'
 
-INTERVAL_ANNOTATIONS = [
-    # Annotation fields to be added to singleton counts for aggregation
-    # Specifically for interval-based annotation
-    'overall',
-    'hexamer',
-    'conserved'
-]
-
 MAPS_AGGREGATIONS = [
     # Wildcard combinations of form: {x-axis}-{color}-{facet}
     # Each of the entries must be a valid field of the singleton count table

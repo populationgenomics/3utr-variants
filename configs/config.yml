@@ -3,12 +3,15 @@ output_root: results/output
 bucket: cpg-utr-variants-test  # name of storage container to run in
 cluster: utr-variants  # name of dataproc cluster instance
 local: false
+
 genome_assembly: GRCh37
+
 chr_subsets:
-    # chr22: '22:1-51304566' # end: 51304566
-    # chr22_small: '22:1-17304566'
-    # chr1: '1:1-end'
-    genome: 'all'
+  chr22_small: '22:1-17304566'
+  # chr22: '22:1-51304566' # end: 51304566
+  # chr1: '1:1-end'
+  # genome: 'all'
+
 gnomAD:
   version: 2.1.1
   gnomAD_ht: gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht
@@ -55,8 +58,9 @@ aggregations:
   # Each of the entries must be a valid field of the singleton count table
   # At least one entry must be given, e.g. 'hexamer-overall' will plot 'hexamer' in the
   # x-axis and colour by 'overall', but does not facet the plot
-  - hexamer-conserved-overall
-  - hexamer-overall-conserved
-  - conserved
-  - conserved-overall
-  - hexamer-conserved
+  - hexamer_motif-conserved-feature
+  - hexamer_motif-feature-conserved
+  - conservation-database
+  - conservation-feature
+  - hexamer_motif-conservation
+  - database-feature
