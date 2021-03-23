@@ -17,8 +17,8 @@ def extract_annotations(
     Extract annotations and annotate database and feature
     :param df: DataFrame of features to extract annotations to
     :param annotation_string: column in df of concatenated annotation strings
-    :param annotations_columns: list of annotation columns to extract to, number of elements
-        must match number of entries df[name_column]
+    :param annotations_columns: list of annotation columns to extract to, number of
+        elements must match number of entries df[name_column]
     :param sep: separator used in df[name_column] for splitting annotation string to
         annotation columns
     :param database: database of features
@@ -31,14 +31,22 @@ def extract_annotations(
     return df
 
 
-def convert_chr_style(
-    interval: pybedtools.Interval, chr_style: str
+def convert_chromosome_bed(
+    interval: pybedtools.Interval, style: str
 ) -> pybedtools.Interval:
     """
     Convert chromosome style of interval to match chr_style
     """
-    if chr_style == '' and 'chr' in interval.chrom:
-        interval.chrom = interval.chrom.replace('chr', '')
-    elif chr_style == 'chr' and 'chr' not in interval.chrom:
-        interval.chrom = f'chr{interval.chrom}'
+    interval.chrom = convert_chromosome(interval.chrom, style)
     return interval
+
+
+def convert_chromosome(chromosome, style) -> str:
+    """
+    Convert chromosome style of interval to match chr_style
+    """
+    if style == '' and 'chr' in chromosome:
+        chromosome = chromosome.replace('chr', '')
+    elif style == 'chr' and 'chr' not in chromosome:
+        chromosome = f'chr{chromosome}'
+    return chromosome

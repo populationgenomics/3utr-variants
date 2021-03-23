@@ -5,6 +5,10 @@ Extract UTR features from different annotations
 interval_out_dir = output_root / 'annotations'
 
 
+def chr_style_gnomAD(wildcards) :
+    return '' if config['genome_assembly'] == 'GRCh37' else 'chr'
+
+
 rule extract_Gencode_UTR:
     # Extract annotated 3'UTR regions from GENCODE gene annotation
     input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
@@ -34,13 +38,13 @@ rule extract_PolyA_DB:
 
 
 rule merge_UTR_intervals:
+    # Merge all interval annotations with 3'UTR regions
     input:
-        utrs=rules.extract_Gencode_UTR.output.utr,  # TODO: use PolyADB UTR intervals
-        hexamers=rules.extract_PolyA_DB.output.PAS_hexamers,
-        pas=rules.extract_PolyA_DB.output.PAS
+        utrs=rules.extract_Gencode_UTR.output.utr,
+        PolyA_DB=rules.extract_PolyA_DB.output.intervals,
     output:
         intervals=interval_out_dir / 'merged_UTR_intervals.tsv'
     params:
-        chr_style_gnomAD='' if config['genome_assembly'] == 'GRCh37' else 'chr',
-        annotations=INTERVAL_ANNOTATIONS
+        chr_style_gnomAD=chr_style_gnomAD,
+        annotations=config['PolyA_DB']['annotation_columns']
     script: '../scripts/merge_utr_intervals.py'

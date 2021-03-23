@@ -2,11 +2,10 @@
 Merge different UTR intervals and annotate
 """
 import tempfile
+from functools import reduce
+import pandas as pd
 import pybedtools
-from utr3variants.utils import convert_chr_style
-
-# map annotation to column in |-separated annotation entry
-ANNOTATION_MAP = {'overall': -1, 'hexamer': 0, 'conserved': 1}
+from utr3variants.utils import convert_chromosome_bed, convert_chromosome
 
 
 def rename_interval(
@@ -38,39 +37,39 @@ def rename_interval(
 
 
 if __name__ == '__main__':
+    chr_style = snakemake.params.chr_style_gnomAD
+    annotations = snakemake.params.annotations
     utrs = pybedtools.BedTool(snakemake.input.utrs.__str__())
-    hexamers = pybedtools.BedTool(snakemake.input.hexamers.__str__())
-    pas = pybedtools.BedTool(snakemake.input.pas.__str__())
+    polya_db = pd.read_table(snakemake.input.PolyA_DB.__str__(), sep='\t')
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        other_utr = (
-            utrs.subtract(hexamers)  # pylint: disable=too-many-function-args
-            .subtract(pas)
-            .each(rename_interval, name='other_UTR|other_UTR|other_UTR')
-            .saveas(f'{tmp_dir}/other_utr.bed')
-        )
-        hexamers = hexamers.each(
-            rename_interval,
-            prefix='hexamer',
-        ).saveas(f'{tmp_dir}/hexamer.bed')
-        pas = pas.each(
-            rename_interval,
-            prefix='PAS',
-        ).saveas(f'{tmp_dir}/pas.bed')
-
-        # concatenate regions
-        bed = other_utr.cat(hexamers, pas, postmerge=False).sort()
-
         # convert chromosome format to match gnomAD dataset
-        bed = bed.each(
-            convert_chr_style, chr_style=snakemake.params['chr_style_gnomAD']
+        utrs = utrs.each(convert_chromosome_bed, chr_style)
+        polya_db.chrom = polya_db.chrom.apply(
+            lambda x: convert_chromosome(x, chr_style)
         )
 
-        df = bed.saveas(f'{tmp_dir}/merged.bed').to_dataframe()
+        # subtract from 3'UTR
+        polya_db_bed = pybedtools.BedTool.from_dataframe(polya_db)
+        other_utr = (
+            utrs.subtract(  # pylint: disable=too-many-function-args
+                polya_db_bed
+            ).saveas(f'{tmp_dir}/other_utr.bed')
+            # convert other 3'UTR to dataframe
+            .to_dataframe()
+        )
+        other_utr['database'] = 'GENCODE'
+        other_utr['feature'] = '3UTR'
 
-    # split annotation columns
-    annotations = snakemake.params.annotations
-    df[annotations] = df.name.str.split('|', expand=True)
+    # merge all intervals via pandas
+    common_cols = list(set(other_utr.columns) & set(polya_db.columns))
+
+    df = reduce(
+        lambda df_left, df_right: pd.merge(
+            df_left, df_right, how='outer', on=common_cols
+        ),
+        [other_utr, polya_db],
+    )
 
     # convert to hail-parsable locus interval
     df['locus_interval'] = (
@@ -78,8 +77,7 @@ if __name__ == '__main__':
     )
 
     # remove redundant columns
-    df = df[['locus_interval', 'strand'] + annotations]
+    df = df[['locus_interval', 'strand', 'database', 'feature'] + annotations]
 
     # save
-    print(df.head())
     df.to_csv(snakemake.output.intervals, sep='\t', index=False)

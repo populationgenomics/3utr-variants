@@ -23,6 +23,7 @@ ANNO_COLUMN_MAP = {
     'hexamer_motif': 'PAS Signal',
     'conservation': 'Conservation',
     'percent_expressed': 'PSE',
+    'expression': 'Mean RPM',
 }
 
 
@@ -68,8 +69,7 @@ def get_hexamers(
     :param hexamer_column: column index of hexamer in feature name
     :return: list of hexamer coordinates
     """
-    annotations = feature.name.split('|')  # pylint: disable=W0612
-    hexamer_motif = annotations[hexamer_column]
+    hexamer_motif = feature.name.split('|')[hexamer_column]
 
     if hexamer_motif == 'NoPAS':
         return []
@@ -111,6 +111,7 @@ if __name__ == '__main__':
     # cleanup columns
     df['Start'] = df['Position'] - 1
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
+    df['score'] = '.'
 
     # put annotation into name
     db_cols = [ANNO_COLUMN_MAP[a] for a in annotations]
@@ -118,16 +119,16 @@ if __name__ == '__main__':
 
     # create bedtools object/table
     print('Create BedTools object')
+    # BedTool object needed for hexamer extraction
     bed_cols = [
         'Chromosome',  # chrom
         'Start',  # start
         'Position',  # end
         'Name',  # name
-        'Mean RPM',  # score
+        'score',  # score
         'Strand',  # strand
     ]
     bed = pybedtools.BedTool.from_dataframe(df[bed_cols].drop_duplicates())
-    # BedTool object needed for hexamer extraction
 
     # convert back to dataframe with annotations
     intervals_df = extract_annotations(
@@ -156,7 +157,13 @@ if __name__ == '__main__':
             hexamer_intervals.extend(hex_intervals)
 
         hex_df = pybedtools.BedTool(hexamer_intervals).to_dataframe()
-        hex_df = extract_annotations(hex_df, annotation_string='name', annotations_columns=annotations, database='PolyA_DB', feature='hexamer')
+        hex_df = extract_annotations(
+            hex_df,
+            annotation_string='name',
+            annotations_columns=annotations,
+            database='PolyA_DB',
+            feature='hexamer',
+        )
         intervals_df = pd.concat([intervals_df, hex_df])
 
     print('save...')
