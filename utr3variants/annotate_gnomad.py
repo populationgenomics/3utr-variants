@@ -40,7 +40,7 @@ def annotate_by_intervals(
         )
     )
     return ht.annotate(  # take the first one we see, or default value
-        **{new_column: hl.coalesce(ht.all_values.first(), 'other_variant')}
+        **{new_column: hl.coalesce(ht.all_values.first(), '')}
     ).drop('all_values')
 
 

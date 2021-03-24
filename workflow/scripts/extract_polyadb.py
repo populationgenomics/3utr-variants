@@ -139,7 +139,7 @@ if __name__ == '__main__':
         bed.to_dataframe(),
         annotation_string='name',
         annotations_columns=annotations,
-        database='PoylA_DB',
+        database='PolyA_DB',
         feature='PAS',
     )
 

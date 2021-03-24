@@ -75,7 +75,7 @@ def count_file(wildcards):
 
 
 rule MAPS:
-    # Compute MAPS locally
+    # Compute MAPS according to aggregations in wildcard and plot
     input:
         counts=count_file,
         utils='workflow/scripts/utils.R'
@@ -83,7 +83,8 @@ rule MAPS:
         tsv=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.tsv',
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
     params:
-        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+        variant_count_min=0,
     conda:
         "../envs/utr-variants-r.yml"
     script: '../scripts/maps.R'

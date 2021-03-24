@@ -34,7 +34,12 @@ if __name__ == '__main__':
     for annotation in annotations:
         ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
 
-    count_ht = count_for_maps(ht, mutation_ht, additional_grouping=annotations)
+    count_ht = count_for_maps(
+        ht,
+        mutation_ht,
+        additional_grouping=annotations,
+        skip_mut_check=snakemake.config['gnomAD']['skip_checks'],
+    )
 
     print('save...')
     count_ht.export(counts_out)
