@@ -58,9 +58,11 @@ aggregations:
   # Each of the entries must be a valid field of the singleton count table
   # At least one entry must be given, e.g. 'hexamer-overall' will plot 'hexamer' in the
   # x-axis and colour by 'overall', but does not facet the plot
-  - hexamer_motif-conserved-feature
-  - hexamer_motif-feature-conserved
+  - hexamer_motif-conservation-feature
+  - hexamer_motif-feature-conservation
   - conservation-database
   - conservation-feature
   - hexamer_motif-conservation
   - database-feature
+  - database-hexamer_motif-feature
+  - database-conservation-feature
