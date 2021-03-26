@@ -62,5 +62,6 @@ maps_reference <- function(count_dt) {
   #dt_csq[worst_csq %in% syn_like, consequence := 'other synonymous-like']
   dt_csq[worst_csq == 'synonymous_variant', consequence := 'synonymous']
   dt_csq <- maps(dt_csq, grouping = 'consequence')
+  dt_csq <- na.omit(dt_csq)
   dt_csq
 }

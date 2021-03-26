@@ -74,10 +74,29 @@ def count_file(wildcards):
         else GS.remote(rules.count_singletons_GCP.output.maps,keep_local=True)
 
 
+rule clean_variant_counts:
+    input: counts=count_file
+    output: counts=output_root / '{chr_subset}/{run_location}/variant_counts_cleaned.tsv'
+    run:
+        import pandas as pd
+
+        df = pd.read_table(input.counts,sep='\t')
+        if 'hexamer_motif' in ALL_ANNOTATIONS:
+            df = df[df.hexamer_motif != 'Arich']  # remove A-rich hexamers
+        if 'percent_expressed' in ALL_ANNOTATIONS:
+            df['percent_expressed'] = pd.cut(df.percent_expressed.astype(float), 10).astype(str)
+        # fill in blank values
+        df['database'].fillna('gnomAD',inplace=True)
+        df['feature'].fillna('other variant',inplace=True)
+        for anno in [x for x in ALL_ANNOTATIONS if x not in ['feature', 'database']]:
+            df[anno].fillna(df.feature,inplace=True)
+        df.to_csv(output.counts,sep='\t',index=False)
+
+
 rule MAPS:
     # Compute MAPS according to aggregations in wildcard and plot
     input:
-        counts=count_file,
+        counts=rules.clean_variant_counts.output,
         utils='workflow/scripts/utils.R'
     output:
         tsv=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.tsv',

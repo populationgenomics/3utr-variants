@@ -19,15 +19,20 @@ fwrite(dt, snakemake@output$tsv, sep = '\t')
 
 # Plot only top n variants
 dt <- dt[variant_count > snakemake@params$variant_count_min]
-setorderv(dt, cols = aggregations)
 
 new_columns <- c('anno_x', 'shape', 'facet')[seq_along(aggregations)]
 
 # Flatten for 3'UTR and other variants
-if ('feature' %in% names(dt) & length(aggregations) == 3) {
-  flatten_values <- c('3UTR', '')
-  dt_lines <- dt[feature %in% flatten_values]
-  dt <- dt[!feature %in% flatten_values]
+if (length(aggregations) == 3){
+  if ('database' %in% aggregations) {
+    flatten_values <- c('GENCODE', 'gnomAD')
+    dt_lines <- dt[database %in% flatten_values]
+    dt <- dt[!database %in% flatten_values]
+  } else if('feature' %in% aggregations) {
+    flatten_values <- c('3UTR', 'other variant')
+    dt_lines <- dt[feature %in% flatten_values]
+    dt <- dt[!feature %in% flatten_values]
+  }
   setnames(dt_lines, old = aggregations, new = new_columns)
 }
 
@@ -36,12 +41,12 @@ setnames(dt, old = aggregations, new = new_columns)
 
 title <- paste0('MAPS on ', snakemake@wildcards$chr_subset,
                 ' (', snakemake@params$chr_subset, ')')
-dodge_width <- 0.8
+dodge_width <- 0.5
 
 if ('shape' %in% names(dt)) {
-  p <- ggplot(dt, aes(reorder(anno_x, variant_count), maps, color = shape, group = shape))
+  p <- ggplot(dt, aes(anno_x, maps, color = shape, group = shape))
 } else {
-  p <- ggplot(dt, aes(reorder(anno_x, variant_count), maps))
+  p <- ggplot(dt, aes(anno_x, maps))
 }
 
 if ('facet' %in% names(dt)) {
@@ -58,16 +63,17 @@ if (exists('dt_lines')) {
 }
 
 p <- p +
-  geom_hline(yintercept = 0, colour = 'grey50', linetype = 'dotted') +
   geom_hline(  # add lines for reference
     aes(yintercept = maps, group = consequence),
     data = dt_csq[, .(maps, consequence)],
     linetype = 'dashed',
-    na.rm = TRUE
+    color = 'grey50'
   ) +
   geom_text(
     aes(x = '', y = maps, label = consequence, vjust = -0.3),
-    data = dt_csq, inherit.aes = FALSE, nudge_x = -0.3, size = 3
+    data = dt_csq,
+    inherit.aes = FALSE,
+    size = 3
   ) +
   geom_errorbar(
     aes(ymin = maps - maps_sem, ymax = maps + maps_sem),
@@ -81,7 +87,7 @@ p <- p +
     y = 'MAPS',
     color = toTitleCase(aggregations[2])
   ) +
-  scale_color_brewer(palette = 'Set1') +
+  #scale_color_brewer(palette = 'Set1') +
   theme_classic() +
   theme(
     legend.position = 'right',
