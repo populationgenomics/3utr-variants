@@ -24,6 +24,7 @@ ANNO_COLUMN_MAP = {
     'conservation': 'Conservation',
     'percent_expressed': 'PSE',
     'expression': 'Mean RPM',
+    'most_expressed': 'most_expressed',
 }
 
 
@@ -116,6 +117,11 @@ if __name__ == '__main__':
     df['Start'] = df['Position'] - 1
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
     df['score'] = '.'
+
+    # infer most-used PAS
+    df['most_expressed'] = False
+    df.loc[df.groupby(['Gene Symbol'])['Mean RPM'].idxmax(), 'most_expressed'] = True
+    annotations.append('most_expressed')
 
     # put annotation into name
     db_cols = [ANNO_COLUMN_MAP[a] for a in annotations]
