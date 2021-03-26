@@ -11,7 +11,7 @@ def import_interval_table(paths, interval_field, **kwargs):
     Import table containing a locus interval field
     :param paths: paths to be passed to hail.import_table
     :param interval_field: name of interval field to be parsed by
-        hail.parse_locus_interval and keyed by
+        hail.parse_locus_interval and used as the table's key
     """
     ht = hl.import_table(paths, **kwargs)
     return ht.transmute(
@@ -19,29 +19,17 @@ def import_interval_table(paths, interval_field, **kwargs):
     ).key_by(interval_field)
 
 
-def annotate_by_intervals(
-    ht, intervals_ht, annotation_column='target', new_column=None
-) -> hl.Table:
+def annotate_by_intervals(ht, intervals_ht, columns) -> hl.Table:
     """
     Annotate a locus-keyed hail table by interval-level annotation
 
     :param  ht: hail table to be annotated
-    :param intervals_ht: hail table with annotation on interval-basis
-    :param annotation_column: name of annotation column from intervals_ht
-        default: 'target' annotation column of imported UCSC BED hail table
-    :param new_column: name of new annotation column, if None, use annotation_column
+    :param intervals_ht: hail table keyed by non-overlapping intervals
+        and named annotation columns
+    :param columns: annotation columns in intervals intervals_ht
     """
-    if new_column is None:
-        new_column = annotation_column
-
-    ht = ht.annotate(  # annotate all matching values
-        all_values=intervals_ht.index(ht.locus, all_matches=True).map(
-            lambda x: x[annotation_column]
-        )
-    )
-    return ht.annotate(  # take the first one we see, or default value
-        **{new_column: hl.coalesce(ht.all_values.first(), '')}
-    ).drop('all_values')
+    annotation = {c: hl.coalesce(intervals_ht[ht.locus][c], '') for c in columns}
+    return ht.annotate(**annotation)
 
 
 def annotate_for_maps(ht, context_ht) -> hl.Table:

@@ -28,11 +28,12 @@ if __name__ == '__main__':
     )
     mutation_ht = hl.read_table(mutation_path)
     ht = hl.read_table(gnomad_path)
-    intervals = import_interval_table(interval_file, 'locus_interval')
+    intervals = import_interval_table(
+        interval_file, 'locus_interval', min_partitions=100
+    )
 
     annotations = snakemake.params.annotations
-    for annotation in annotations:
-        ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
+    ht = annotate_by_intervals(ht, intervals, columns=annotations)
 
     count_ht = count_for_maps(
         ht,

@@ -31,7 +31,9 @@ def main(args):
     """
     hl.init(default_reference=args.genome_assembly)
 
-    intervals = import_interval_table(args.intervals, 'locus_interval')
+    intervals = import_interval_table(
+        args.intervals, 'locus_interval', min_partitions=100
+    )
     mutation_ht = hl.read_table(args.mutation_ht)
     context_ht = hl.read_table(args.context_ht)
     ht = hl.read_table(args.gnomAD_ht)
@@ -44,8 +46,7 @@ def main(args):
 
     print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
-    for annotation in args.annotations:
-        ht = annotate_by_intervals(ht, intervals, annotation_column=annotation)
+    ht = annotate_by_intervals(ht, intervals, columns=args.annotations)
 
     print('Count variants')
     count_ht = count_for_maps(
