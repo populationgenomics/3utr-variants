@@ -118,6 +118,11 @@ if __name__ == '__main__':
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
     df['score'] = '.'
 
+    # remove duplicate intervals, keep most expressed
+    interval_columns = ['Chromosome', 'Position', 'Strand']
+    df.sort_values(by=interval_columns + ['Gene Symbol', 'Mean RPM'], inplace=True)
+    df.drop_duplicates(subset=interval_columns, keep='first', inplace=True)
+
     # infer most-used PAS
     df['most_expressed'] = False
     df.loc[df.groupby(['Gene Symbol'])['Mean RPM'].idxmax(), 'most_expressed'] = True
@@ -138,7 +143,7 @@ if __name__ == '__main__':
         'score',  # score
         'Strand',  # strand
     ]
-    bed = pybedtools.BedTool.from_dataframe(df[bed_cols].drop_duplicates())
+    bed = pybedtools.BedTool.from_dataframe(df[bed_cols])
 
     # convert back to dataframe with annotations
     intervals_df = extract_annotations(
