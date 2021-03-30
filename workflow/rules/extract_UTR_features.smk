@@ -5,13 +5,13 @@ Extract UTR features from different annotations
 interval_out_dir = output_root / 'annotations'
 
 
-def chr_style_gnomAD(wildcards) :
+def chr_style_gnomAD(wildcards):
     return '' if config['genome_assembly'] == 'GRCh37' else 'chr'
 
 
 rule extract_Gencode_UTR:
     # Extract annotated 3'UTR regions from GENCODE gene annotation
-    input: rules.download_Gencode.output  # config["databases"]["Gencode"]["file"]
+    input: rules.download_Gencode.output
     output:
         utr=interval_out_dir / 'Gencode/3UTR.bed',
     shell:
@@ -25,7 +25,7 @@ rule extract_Gencode_UTR:
 rule extract_PolyA_DB:
     # Extract PAS positions, surrounding regions and hexamers
     input:
-        db=rules.download_PolyA_DB.output,# config["databases"]["PolyA_DB"]["file"],
+        db=rules.download_PolyA_DB.output,
         fasta=ancient(
             expand(rules.genomepy.output[0],assembly=config['assembly_ucsc'])
         )
@@ -35,6 +35,17 @@ rule extract_PolyA_DB:
     params:
         annotations=config['PolyA_DB']['annotation_columns']
     script: '../scripts/extract_polyadb.py'
+
+
+rule extract_PolyASite2:
+    input:
+        db=rules.download_PolyASite2.output
+    output:
+        intervals=interval_out_dir / 'PolyASite2/annotation.tsv',
+        stats=interval_out_dir / 'PolyASite2/stats.tsv'
+    params:
+        annotations=config['PolyASite2']['annotation_columns']
+    script: '../scripts/extract_polyasite2.py'
 
 
 rule merge_UTR_intervals:

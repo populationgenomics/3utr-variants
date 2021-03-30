@@ -55,10 +55,10 @@ rule download_Gencode:
         """
 
 
-rule download_PolyASite:
-    output: output_root / 'annotations/PolyASite/atlas.clusters.2.0.GRCh38.96.bed'
+rule download_PolyASite2:
+    output: output_root / 'annotations/PolyASite2/atlas.clusters.2.0.GRCh38.96.bed'
     params:
-        url = config['PolyASite']['url']
+        url = config['PolyASite2']['url']
     shell:
         """
         wget -nc -P $(dirname {output}) {params.url}

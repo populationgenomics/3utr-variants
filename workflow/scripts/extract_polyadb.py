@@ -1,13 +1,11 @@
 """
 Extract PolyA sites and cis-elements & flanking regions from PolyA_DB3
 
-When run as script:
-    Input:
-        PolyA_DB database file
-        reference sequence in FASTA format (for locating hexamers)
-    Output:
-        bed file of PAS and hexamer intervals with single annotation (wildcard)
-        name column format: PolyA_DB3|<PAS/hexamer-motif>|<annotation value>
+Input:
+    PolyA_DB database file
+    reference sequence in FASTA format (for locating hexamers)
+Output:
+    TSV file of PAS and hexamer intervals with all annotations in columns
 """
 
 import re
