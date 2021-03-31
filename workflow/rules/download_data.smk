@@ -10,7 +10,7 @@ rule genomepy:
             multiext(str(output_root / "reference/{assembly}/{assembly}"),
                 ".fa",".fa.fai",".fa.sizes",".annotation.gtf.gz",".annotation.bed.gz")
         )
-    log: str(output_root / "logs/genomepy_{assembly}.log")
+    log: str(output_root / "reference/{assembly}/genomepy_{assembly}.log")
     params:
         provider="UCSC"  # optional, defaults to ucsc. Choose from ucsc, ensembl, and ncbi
     cache: True  # mark as eligible for between workflow caching
@@ -28,6 +28,17 @@ rule genomepy:
 rule get_fasta:
     # Request fasta file for genome assembly specified in config
     input: expand(rules.genomepy.output,assembly=config['assembly_ucsc'])
+
+
+rule download_chainfile:
+    output: output_root / 'reference/hg38ToHg19.over.chain'
+    params:
+        url='ftp://hgdownload.cse.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz'
+    shell:
+        """
+        wget --timestamping {params.url} -O {output}.gz
+        gunzip {output}.gz
+        """
 
 
 rule download_PolyA_DB:

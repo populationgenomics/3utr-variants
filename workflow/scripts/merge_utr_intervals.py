@@ -5,7 +5,12 @@ import tempfile
 from functools import reduce
 import pandas as pd
 import pybedtools
-from utr3variants.utils import convert_chromosome_bed, convert_chromosome
+from utr3variants.utils import (
+    encode_annotations,
+    extract_annotations,
+    convert_chromosome,
+    convert_chromosome_bed,
+)
 
 
 def rename_interval(
@@ -40,35 +45,54 @@ if __name__ == '__main__':
     chr_style = snakemake.params.chr_style_gnomAD
     annotations = snakemake.params.annotations
     utrs = pybedtools.BedTool(snakemake.input.utrs.__str__())
-    polya_db = pd.read_table(snakemake.input.PolyA_DB.__str__(), sep='\t')
+    polya_db = pd.read_table(snakemake.input.PolyA_DB.__str__(), sep='\t', dtype=str)
+    polya_site = pd.read_table(
+        snakemake.input.PolyASite2.__str__(), sep='\t', dtype=str
+    )
+    chainfile = snakemake.input.chainfile.__str__()
 
+    # liftover PolyASite2 to hg19
+    pasite_anno = [x for x in annotations if x in polya_site.columns] + [
+        'database',
+        'feature',
+    ]
+    polya_site = encode_annotations(polya_site, pasite_anno, 'name')
+    polya_site_bed = pybedtools.BedTool.from_dataframe(
+        polya_site[['chrom', 'start', 'end', 'name', 'score', 'strand']]
+    ).liftover(chainfile)
+    polya_site = extract_annotations(
+        polya_site_bed.to_dataframe(dtype=str), 'name', pasite_anno
+    )
+
+    # convert chromosome format to match gnomAD dataset
+    utrs = utrs.each(convert_chromosome_bed, chr_style)
+    polya_db.chrom = polya_db.chrom.apply(lambda x: convert_chromosome(x, chr_style))
+    polya_site.chrom = polya_site.chrom.apply(
+        lambda x: convert_chromosome(x, chr_style)
+    )
+
+    # subtract from 3'UTR
+    polya_db_bed = pybedtools.BedTool.from_dataframe(polya_db)
+    polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site)
     with tempfile.TemporaryDirectory() as tmp_dir:
-        # convert chromosome format to match gnomAD dataset
-        utrs = utrs.each(convert_chromosome_bed, chr_style)
-        polya_db.chrom = polya_db.chrom.apply(
-            lambda x: convert_chromosome(x, chr_style)
-        )
-
-        # subtract from 3'UTR
-        polya_db_bed = pybedtools.BedTool.from_dataframe(polya_db)
         other_utr = (
-            utrs.subtract(  # pylint: disable=too-many-function-args
-                polya_db_bed
-            ).saveas(f'{tmp_dir}/other_utr.bed')
-            # convert other 3'UTR to dataframe
-            .to_dataframe()
+            utrs.subtract(polya_db_bed)  # pylint: disable=too-many-function-args
+            .subtract(polya_site_bed)
+            .saveas(f'{tmp_dir}/other_utr.bed')
+            .to_dataframe(dtype=str)
         )
         other_utr['database'] = 'GENCODE'
         other_utr['feature'] = '3UTR'
 
     # merge all intervals via pandas
-    common_cols = list(set(other_utr.columns) & set(polya_db.columns))
-
     df = reduce(
         lambda df_left, df_right: pd.merge(
-            df_left, df_right, how='outer', on=common_cols
+            df_left,
+            df_right,
+            how='outer',
+            on=list(set(df_left.columns) & set(df_right.columns)),
         ),
-        [other_utr, polya_db],
+        [other_utr, polya_db, polya_site],
     )
 
     # convert to hail-parsable locus interval

@@ -54,6 +54,8 @@ rule merge_UTR_intervals:
     input:
         utrs=rules.extract_Gencode_UTR.output.utr,
         PolyA_DB=rules.extract_PolyA_DB.output.intervals,
+        PolyASite2=rules.extract_PolyASite2.output.intervals,
+        chainfile=rules.download_chainfile.output
     output:
         intervals=interval_out_dir / 'merged_UTR_intervals.tsv'
     params:
