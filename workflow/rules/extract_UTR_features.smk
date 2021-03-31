@@ -39,7 +39,8 @@ rule extract_PolyA_DB:
 
 rule extract_PolyASite2:
     input:
-        db=rules.download_PolyASite2.output
+        db=rules.download_PolyASite2.output,
+        genes=expand(rules.genomepy.output[4],assembly='hg38')
     output:
         intervals=interval_out_dir / 'PolyASite2/annotation.tsv',
         stats=interval_out_dir / 'PolyASite2/stats.tsv'

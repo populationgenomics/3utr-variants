@@ -11,9 +11,14 @@ from collections import OrderedDict
 import numpy as np
 import pandas as pd
 import pybedtools
-from utr3variants.utils import extract_annotations, convert_chromosome
+from utr3variants.utils import (
+    encode_annotations,
+    extract_annotations,
+    convert_chromosome,
+    get_most_expressed,
+)
 
-column_types = OrderedDict(
+COLUMN_TYPES = OrderedDict(
     chrom=str,
     start=int,
     end=int,
@@ -22,52 +27,91 @@ column_types = OrderedDict(
     strand=str,
     percent_expressed=float,
     n_protocols=int,
-    avg_TPM=float,
+    expression=float,
     cluster_annotation=str,
     hexamer_motif=str,
 )
+
+MERGED_COLUMN_TYPES = OrderedDict(
+    chrom=str,
+    start=int,
+    end=int,
+    name=str,
+    score=float,
+    strand=str,
+    gchrom=str,
+    gstart=int,
+    gend=int,
+    gname=str,
+    gscore=str,
+    gstrand=str,
+    g13=str,
+    g14=str,
+    g15=str,
+    g16=str,
+    g17=str,
+    g18=str,
+    g19=str,
+)
+
+CANONICAL_CHROMOSOMES = list(range(1, 22)) + ['X', 'Y']
 
 if __name__ == '__main__':
     genome = snakemake.config['assembly_ucsc']
     annotations = snakemake.params.annotations
     pas_db = snakemake.input.db.__str__()
+    genes_file = snakemake.input.genes.__str__()
     output = snakemake.output
 
-    print('read database')
-    df = pd.read_csv(pas_db, sep='\t', names=column_types.keys(), dtype=column_types)
+    df = pd.read_csv(pas_db, sep='\t', names=COLUMN_TYPES.keys(), dtype=COLUMN_TYPES)
 
     # match chromosome style to genome annotation
+    df = df[df['chrom'].isin(CANONICAL_CHROMOSOMES)]
     df['chrom'] = df.chrom.apply(lambda x: convert_chromosome(x, style='chr'))
 
     # put annotation into name
-    df['name'] = df[annotations].astype(str).agg('|'.join, axis=1)
+    df = encode_annotations(df, annotations, 'name')
 
-    # create bedtools object/table
     print('Create BedTools object')
-    # BedTool object needed for hexamer extraction
-    bed_cols = [
-        'chrom',  # chrom
-        'start',  # start
-        'end',  # end
-        'name',  # name
-        'score',  # score
-        'strand',  # strand
-    ]
+    bed_cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
     bed = pybedtools.BedTool.from_dataframe(df[bed_cols])
 
-    # TODO: add genes & most expressed by gene
-    # bed.closest(genes_bed, s=True, fu=True, D=True)
+    # add genes
+    print('Annotate overlapping genes')
+    genes_bed = pybedtools.BedTool(genes_file).sort()
+    df_genes = (
+        bed.sort()
+        .closest(genes_bed, s=True, fu=True, D='ref')
+        .to_dataframe(names=MERGED_COLUMN_TYPES.keys(), dtype=MERGED_COLUMN_TYPES)
+    )
 
-    # convert back to dataframe with annotations
+    # annotate most expressed
+    print('Annotate most expressed PAS')
+    df_genes = get_most_expressed(
+        df_genes,
+        aggregate_column='gname',
+        expression_column='score',
+        interval_columns=['chrom', 'start', 'end', 'strand'],
+        new_column='most_expressed',
+    )
+    annotations.append('most_expressed')
+    df_genes['name'] = df_genes['name'] + '|' + df_genes['most_expressed'].map(str)
+
+    # drop unnecessary columns
+    df_genes.drop(
+        columns=[x for x in df_genes.columns if x.startswith('g')], inplace=True
+    )
+
     intervals_df = extract_annotations(
-        bed.to_dataframe(),
+        df_genes,
         annotation_string='name',
-        annotations_columns=annotations,
+        annotation_columns=annotations,
         database='PolyASite2',
         feature='PAS',
     )
 
     if 'hexamer_motif' in annotations:
+        print('Extract hexamers')
         hexamers_df = intervals_df.copy().replace('nan', np.nan, regex=True)
         hexamers_df.dropna(subset=['hexamer_motif'], inplace=True)
 
