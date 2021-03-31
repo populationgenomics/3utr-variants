@@ -14,7 +14,7 @@ from typing import List
 import pandas as pd
 import pybedtools
 from pysam import FastaFile  # pylint: disable=no-name-in-module
-from utr3variants.utils import extract_annotations
+from utr3variants.utils import extract_annotations, get_most_expressed
 
 ANNO_COLUMN_MAP = {
     # Mapping of snakemake wildcard to column name in database
@@ -116,14 +116,13 @@ if __name__ == '__main__':
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
     df['score'] = '.'
 
-    # remove duplicate intervals, keep most expressed
-    interval_columns = ['Chromosome', 'Position', 'Strand']
-    df.sort_values(by=interval_columns + ['Gene Symbol', 'Mean RPM'], inplace=True)
-    df.drop_duplicates(subset=interval_columns, keep='first', inplace=True)
-
-    # infer most-used PAS
-    df['most_expressed'] = False
-    df.loc[df.groupby(['Gene Symbol'])['Mean RPM'].idxmax(), 'most_expressed'] = True
+    df = get_most_expressed(
+        df,
+        aggregate_column='Gene Symbol',
+        expression_column='Mean RPM',
+        interval_columns=['Chromosome', 'Position', 'Strand'],
+        new_column='most_expressed',
+    )
     annotations.append('most_expressed')
 
     # put annotation into name
@@ -147,7 +146,7 @@ if __name__ == '__main__':
     intervals_df = extract_annotations(
         bed.to_dataframe(),
         annotation_string='name',
-        annotations_columns=annotations,
+        annotation_columns=annotations,
         database='PolyA_DB',
         feature='PAS',
     )
@@ -173,7 +172,7 @@ if __name__ == '__main__':
         hex_df = extract_annotations(
             hex_df,
             annotation_string='name',
-            annotations_columns=annotations,
+            annotation_columns=annotations,
             database='PolyA_DB',
             feature='hexamer',
         )
