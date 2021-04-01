@@ -4,7 +4,9 @@ Includes preparation of interval formats, gnomAD hail table, local & CGP runs
 """
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 
-ALL_ANNOTATIONS = config['PolyA_DB']['annotation_columns'] + ['database', 'feature']
+ALL_ANNOTATIONS = ['database', 'feature'] + \
+        config['PolyA_DB']['annotation_columns'] + \
+        config['PolyASite2']['annotation_columns']
 GS = GSRemoteProvider()
 
 
@@ -103,7 +105,7 @@ rule MAPS:
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
     params:
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        variant_count_min=0,
+        variant_count_min=10,
     conda:
         "../envs/utr-variants-r.yml"
     script: '../scripts/maps.R'

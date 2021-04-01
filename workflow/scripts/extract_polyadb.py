@@ -11,6 +11,7 @@ Output:
 import re
 from typing import Iterable
 from typing import List
+import numpy as np
 import pandas as pd
 import pybedtools
 from pysam import FastaFile  # pylint: disable=no-name-in-module
@@ -68,7 +69,8 @@ def get_hexamers(
     :param hexamer_column: column index of hexamer in feature name
     :return: list of hexamer coordinates
     """
-    hexamer_motif = feature.name.split('|')[hexamer_column]
+    name_split = feature.name.split('|')
+    hexamer_motif = name_split[hexamer_column]
 
     if hexamer_motif == 'NoPAS':
         return []
@@ -92,11 +94,10 @@ def get_hexamers(
 
     hexamer_list = []
     for signal in dna_signals:
-        # annotations[hexamer_column] = signal  # rename hexamer annotation
-        # intervals = create_signal_interval(
-        #     feature, signal, sequence, name='|'.join(annotations)
-        # )
-        intervals = create_signal_interval(feature, signal, sequence)
+        name_split[hexamer_column] = signal  # rename hexamer annotation
+        intervals = create_signal_interval(
+            feature, signal, sequence, name='|'.join(name_split)
+        )
         hexamer_list.extend(intervals)
     return hexamer_list
 
@@ -159,12 +160,11 @@ if __name__ == '__main__':
         sequences = FastaFile(bed_40nt_us.seqfn)
 
         hexamer_intervals = []
+        hex_column = annotations.index('hexamer_motif')
         for f in bed_40nt_us:
             seq = sequences.fetch(f'{f.chrom}:{f.start}-{f.stop}({f.strand})')
             hex_intervals = get_hexamers(
-                feature=f,
-                sequence=seq,
-                hexamer_column=annotations.index('hexamer_motif'),
+                feature=f, sequence=seq, hexamer_column=hex_column
             )
             hexamer_intervals.extend(hex_intervals)
 
@@ -176,6 +176,7 @@ if __name__ == '__main__':
             database='PolyA_DB',
             feature='hexamer',
         )
+        intervals_df['hexamer_motif'] = np.nan
         intervals_df = pd.concat([intervals_df, hex_df])
 
     print('save...')
