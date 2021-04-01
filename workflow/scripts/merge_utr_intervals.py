@@ -4,13 +4,19 @@ Merge different UTR intervals and annotate
 import tempfile
 from functools import reduce
 import pandas as pd
+from pandas.api.types import CategoricalDtype
 import pybedtools
 from utr3variants.utils import (
     encode_annotations,
     extract_annotations,
     convert_chromosome,
-    convert_chromosome_bed,
 )
+
+BED_COLS = ['chrom', 'start', 'end', 'name', 'score', 'strand']
+CANONICAL_CHROMOSOMES = [str(x) for x in list(range(1, 23))] + ['X', 'Y']
+CANONICAL_CHROMOSOMES_CHR = [f'chr{chr}' for chr in CANONICAL_CHROMOSOMES]
+
+chr_dtype = CategoricalDtype(CANONICAL_CHROMOSOMES, ordered=True)
 
 
 def rename_interval(
@@ -53,20 +59,20 @@ if __name__ == '__main__':
     polya_site = pd.read_table(
         snakemake.input.PolyASite2.__str__(), sep='\t', dtype=str
     )
-    chainfile = snakemake.input.chainfile.__str__()
 
     # liftover PolyASite2 to hg19
     pasite_anno = [x for x in annotations if x in polya_site.columns] + [
         'database',
         'feature',
     ]
-    polya_site = encode_annotations(polya_site, pasite_anno, 'name')
-    polya_site_bed = pybedtools.BedTool.from_dataframe(
-        polya_site[['chrom', 'start', 'end', 'name', 'score', 'strand']]
-    ).liftover(chainfile)
+    polya_site = encode_annotations(polya_site, pasite_anno, 'name', fillna=True)
+    polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site[BED_COLS]).liftover(
+        chainfile
+    )
     polya_site = extract_annotations(
         polya_site_bed.to_dataframe(dtype=str), 'name', pasite_anno
     )
+    polya_site = polya_site[polya_site.chrom.isin(CANONICAL_CHROMOSOMES_CHR)]
 
     # convert chromosome format to match gnomAD dataset
     print('Convert chromosome styles')
@@ -101,13 +107,27 @@ if __name__ == '__main__':
         [other_utr, polya_db, polya_site],
     )
 
-    # convert to hail-parsable locus interval
+    # sort intervals
+    df['chrom'] = df['chrom'].astype(str).astype(chr_dtype)
+    df.sort_values(by=['chrom', 'start', 'end', 'strand'], inplace=True)
+
+    # convert to
+    print('Create hail-parsable locus intervals')
     df['locus_interval'] = (
-        '(' + df.chrom.map(str) + ':' + df.start.map(str) + '-' + df.end.map(str) + ']'
+        '('
+        + df.chrom.astype(str)
+        + ':'
+        + df.start.map(str)
+        + '-'
+        + df.end.map(str)
+        + ']'
     )
 
-    # remove redundant columns
-    df = df[['locus_interval', 'strand', 'database', 'feature'] + annotations]
-
     # save
-    df.to_csv(snakemake.output.intervals, sep='\t', index=False)
+    print('save...')
+    df[['locus_interval', 'strand', 'database', 'feature'] + annotations].to_csv(
+        snakemake.output.intervals, sep='\t', index=False
+    )
+    df[['chrom', 'start', 'end', 'name', 'score', 'strand']].to_csv(
+        snakemake.output.bed, sep='\t', index=False, header=False
+    )
