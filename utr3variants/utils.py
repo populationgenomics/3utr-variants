@@ -38,10 +38,16 @@ def get_most_expressed(
     return df
 
 
-def encode_annotations(df, annotation_columns, encode_column, sep='|'):
+def encode_annotations(
+    df, annotation_columns, encode_column, sep='|', fillna=False, verbose=True
+):
     """
     Encode annotation columns into a single column of concatenated strings
     """
+    if verbose:
+        print('Encode annotations...')
+    if fillna:
+        df = df.fillna('')
     df[encode_column] = df[annotation_columns].astype(str).agg(sep.join, axis=1)
     return df
 
@@ -53,6 +59,7 @@ def extract_annotations(
     sep: str = '|',
     database: str = None,
     feature: str = None,
+    verbose: bool = True,
 ):
     """
     Extract annotations and annotate database and feature
@@ -66,6 +73,8 @@ def extract_annotations(
     :param feature: feature type e.g. PAS, hexamer
     :return: df with new columns for each annotation, database and feature
     """
+    if verbose:
+        print('Extract annotations...')
     df[annotation_columns] = df[annotation_string].str.split(sep, expand=True)
     if database is not None and database not in df.columns:
         df['database'] = database

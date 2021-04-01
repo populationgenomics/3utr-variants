@@ -57,7 +57,8 @@ rule merge_UTR_intervals:
         PolyASite2=rules.extract_PolyASite2.output.intervals,
         chainfile=rules.download_chainfile.output
     output:
-        intervals=interval_out_dir / 'merged_UTR_intervals.tsv'
+        intervals=interval_out_dir / 'merged_UTR_intervals.tsv',
+        bed=interval_out_dir / 'merged_UTR_intervals.bed'
     params:
         chr_style_gnomAD=chr_style_gnomAD,
         annotations=config['PolyA_DB']['annotation_columns']
