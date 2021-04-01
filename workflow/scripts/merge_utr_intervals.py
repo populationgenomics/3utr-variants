@@ -44,7 +44,11 @@ def rename_interval(
 if __name__ == '__main__':
     chr_style = snakemake.params.chr_style_gnomAD
     annotations = snakemake.params.annotations
-    utrs = pybedtools.BedTool(snakemake.input.utrs.__str__())
+    chainfile = snakemake.input.chainfile.__str__()
+
+    utrs = pd.read_table(
+        snakemake.input.utrs.__str__(), sep='\t', dtype=str, names=BED_COLS
+    )  # pybedtools.BedTool(snakemake.input.utrs.__str__())
     polya_db = pd.read_table(snakemake.input.PolyA_DB.__str__(), sep='\t', dtype=str)
     polya_site = pd.read_table(
         snakemake.input.PolyASite2.__str__(), sep='\t', dtype=str
@@ -65,18 +69,20 @@ if __name__ == '__main__':
     )
 
     # convert chromosome format to match gnomAD dataset
-    utrs = utrs.each(convert_chromosome_bed, chr_style)
+    print('Convert chromosome styles')
+    utrs.chrom = utrs.chrom.apply(lambda x: convert_chromosome(x, chr_style))
     polya_db.chrom = polya_db.chrom.apply(lambda x: convert_chromosome(x, chr_style))
     polya_site.chrom = polya_site.chrom.apply(
         lambda x: convert_chromosome(x, chr_style)
     )
 
     # subtract from 3'UTR
+    utrs_bed = pybedtools.BedTool.from_dataframe(utrs)
     polya_db_bed = pybedtools.BedTool.from_dataframe(polya_db)
     polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site)
     with tempfile.TemporaryDirectory() as tmp_dir:
         other_utr = (
-            utrs.subtract(polya_db_bed)  # pylint: disable=too-many-function-args
+            utrs_bed.subtract(polya_db_bed)  # pylint: disable=too-many-function-args
             .subtract(polya_site_bed)
             .saveas(f'{tmp_dir}/other_utr.bed')
             .to_dataframe(dtype=str)
