@@ -54,7 +54,6 @@ MERGED_COLUMN_TYPES = OrderedDict(
     g19=str,
 )
 
-CANONICAL_CHROMOSOMES = list(range(1, 22)) + ['X', 'Y']
 
 if __name__ == '__main__':
     genome = snakemake.config['assembly_ucsc']
@@ -63,47 +62,48 @@ if __name__ == '__main__':
     genes_file = snakemake.input.genes.__str__()
     output = snakemake.output
 
-    df = pd.read_csv(pas_db, sep='\t', names=COLUMN_TYPES.keys(), dtype=COLUMN_TYPES)
+    df_db = pd.read_csv(pas_db, sep='\t', names=COLUMN_TYPES.keys(), dtype=COLUMN_TYPES)
 
     # match chromosome style to genome annotation
-    df = df[df['chrom'].isin(CANONICAL_CHROMOSOMES)]
-    df['chrom'] = df.chrom.apply(lambda x: convert_chromosome(x, style='chr'))
+    df_db['chrom'] = df_db.chrom.apply(lambda x: convert_chromosome(x, style='chr'))
 
-    # put annotation into name
-    df = encode_annotations(df, annotations, 'name')
+    if 'most_expressed' not in annotations:
+        df_db = encode_annotations(df_db, annotations, 'name')
+    else:
+        df_db = encode_annotations(
+            df_db,
+            annotation_columns=[x for x in annotations if x != 'most_expressed'],
+            encode_column='name',
+        )
 
-    print('Create BedTools object')
-    bed_cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
-    bed = pybedtools.BedTool.from_dataframe(df[bed_cols])
+        bed_cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
+        bed = pybedtools.BedTool.from_dataframe(df_db[bed_cols])
 
-    # add genes
-    print('Annotate overlapping genes')
-    genes_bed = pybedtools.BedTool(genes_file).sort()
-    df_genes = (
-        bed.sort()
-        .closest(genes_bed, s=True, fu=True, D='ref')
-        .to_dataframe(names=MERGED_COLUMN_TYPES.keys(), dtype=MERGED_COLUMN_TYPES)
-    )
+        print('Annotate overlapping genes')
+        genes_bed = pybedtools.BedTool(genes_file).sort()
+        df_db = (
+            bed.sort()
+            .closest(genes_bed, s=True, fu=True, D='ref')
+            .to_dataframe(names=MERGED_COLUMN_TYPES.keys(), dtype=MERGED_COLUMN_TYPES)
+        )
 
-    # annotate most expressed
-    print('Annotate most expressed PAS')
-    df_genes = get_most_expressed(
-        df_genes,
-        aggregate_column='gname',
-        expression_column='score',
-        interval_columns=['chrom', 'start', 'end', 'strand'],
-        new_column='most_expressed',
-    )
-    annotations.append('most_expressed')
-    df_genes['name'] = df_genes['name'] + '|' + df_genes['most_expressed'].map(str)
+        print('Annotate most expressed PAS')
+        df_db = get_most_expressed(
+            df_db,
+            aggregate_column='gname',
+            expression_column='score',
+            interval_columns=['chrom', 'start', 'end', 'strand'],
+            new_column='most_expressed',
+        )
+        df_db['name'] = df_db['name'] + '|' + df_db['most_expressed'].map(str)
 
-    # drop unnecessary columns
-    df_genes.drop(
-        columns=[x for x in df_genes.columns if x.startswith('g')], inplace=True
-    )
+        # drop unnecessary columns
+        df_db.drop(
+            columns=[x for x in df_db.columns if x.startswith('g')], inplace=True
+        )
 
     intervals_df = extract_annotations(
-        df_genes,
+        df_db,
         annotation_string='name',
         annotation_columns=annotations,
         database='PolyASite2',
@@ -145,6 +145,5 @@ if __name__ == '__main__':
         intervals_df = pd.concat([intervals_df, hexamers_df])
 
     print('save...')
-    # get stats
-    intervals_df['feature'].value_counts().to_csv(output.stats, sep='\t')
+    intervals_df['feature'].value_counts().to_csv(output.stats, sep='\t')  # get stats
     intervals_df.to_csv(output.intervals, index=False, sep='\t')
