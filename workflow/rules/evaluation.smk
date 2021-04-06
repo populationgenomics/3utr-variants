@@ -4,9 +4,6 @@ Includes preparation of interval formats, gnomAD hail table, local & CGP runs
 """
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 
-ALL_ANNOTATIONS = ['database', 'feature'] + \
-        config['PolyA_DB']['annotation_columns'] + \
-        config['PolyASite2']['annotation_columns']
 GS = GSRemoteProvider()
 
 

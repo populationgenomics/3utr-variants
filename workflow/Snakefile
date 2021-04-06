@@ -10,6 +10,11 @@ output_root = Path(config['output_root']).resolve()
 config['assembly_ucsc'] = 'hg19' if config['genome_assembly'] == 'GRCh37' else 'hg38'
 chr_subsets = config['chr_subsets'].keys()
 run_locations = 'local' if config['local'] else 'gcp'
+ALL_ANNOTATIONS = sorted(list(set(
+    ['database', 'feature'] +
+    config['PolyA_DB']['annotation_columns'] +
+    config['PolyASite2']['annotation_columns']
+)))
 
 include: 'rules/download_data.smk'
 include: 'rules/extract_UTR_features.smk'

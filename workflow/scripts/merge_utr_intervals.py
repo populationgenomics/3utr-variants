@@ -61,11 +61,8 @@ if __name__ == '__main__':
     )
 
     # liftover PolyASite2 to hg19
-    pasite_anno = [x for x in annotations if x in polya_site.columns] + [
-        'database',
-        'feature',
-    ]
-    polya_site = encode_annotations(polya_site, pasite_anno, 'name', fillna=True)
+    pasite_anno = [x for x in annotations if x in polya_site.columns]
+    polya_site = encode_annotations(polya_site, pasite_anno, 'name')
     polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site[BED_COLS]).liftover(
         chainfile
     )
@@ -111,7 +108,6 @@ if __name__ == '__main__':
     df['chrom'] = df['chrom'].astype(str).astype(chr_dtype)
     df.sort_values(by=['chrom', 'start', 'end', 'strand'], inplace=True)
 
-    # convert to
     print('Create hail-parsable locus intervals')
     df['locus_interval'] = (
         '('
@@ -123,9 +119,12 @@ if __name__ == '__main__':
         + ']'
     )
 
+    # Encode annotations
+    df = encode_annotations(df, annotations, 'name', verbose=True)
+
     # save
     print('save...')
-    df[['locus_interval', 'strand', 'database', 'feature'] + annotations].to_csv(
+    df[['locus_interval', 'strand'] + annotations].to_csv(
         snakemake.output.intervals, sep='\t', index=False
     )
     df[['chrom', 'start', 'end', 'name', 'score', 'strand']].to_csv(
