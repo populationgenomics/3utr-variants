@@ -8,7 +8,6 @@ Output:
 """
 
 from collections import OrderedDict
-import numpy as np
 import pandas as pd
 import pybedtools
 from utr3variants.utils import (
@@ -112,8 +111,7 @@ if __name__ == '__main__':
 
     if 'hexamer_motif' in annotations:
         print('Extract hexamers')
-        hexamers_df = intervals_df.copy().replace('nan', np.nan, regex=True)
-        hexamers_df.dropna(subset=['hexamer_motif'], inplace=True)
+        hexamers_df = intervals_df[intervals_df['hexamer_motif'] != ''].copy()
 
         # split by different signals per PAS by ;
         hexamers_df['hexamer_motif_split'] = hexamers_df['hexamer_motif'].str.split(';')
@@ -141,7 +139,7 @@ if __name__ == '__main__':
         # append hexamer regions translated into BED coordinates
         hexamers_df['database'] = 'PolyASite2'
         hexamers_df['feature'] = 'hexamer'
-        intervals_df['hexamer_motif'] = np.nan
+        intervals_df['hexamer_motif'] = ''
         intervals_df = pd.concat([intervals_df, hexamers_df])
 
     print('save...')

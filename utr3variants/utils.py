@@ -39,16 +39,16 @@ def get_most_expressed(
 
 
 def encode_annotations(
-    df, annotation_columns, encode_column, sep='|', fillna=False, verbose=True
+    df, annotation_columns, encode_column, sep='|', fillna='', verbose=True
 ):
     """
     Encode annotation columns into a single column of concatenated strings
     """
     if verbose:
         print('Encode annotations...')
-    if fillna:
-        df = df.fillna('')
-    df[encode_column] = df[annotation_columns].astype(str).agg(sep.join, axis=1)
+    df[encode_column] = (
+        df[annotation_columns].fillna(fillna).astype(str).agg(sep.join, axis=1)
+    )
     return df
 
 
