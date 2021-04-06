@@ -10,7 +10,7 @@ GS = GSRemoteProvider()
 rule count_singletons_GCP:
     # Count singeltons on Google Cloud
     input:
-        intervals=rules.merge_UTR_intervals.output.intervals,
+        intervals=rules.merge_UTR_intervals.output.bed,
     output:
         maps=config["bucket"] + '/{chr_subset}/variant_count.tsv',
     params:
@@ -53,7 +53,7 @@ rule prepare_gnomAD:
 rule count_variants_local:
     # Count variants locally
     input:
-        intervals=rules.merge_UTR_intervals.output.intervals,
+        intervals=rules.merge_UTR_intervals.output.bed,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
         counts=output_root / '{chr_subset}/local/variant_counts.tsv',
@@ -78,17 +78,26 @@ rule clean_variant_counts:
     output: counts=output_root / '{chr_subset}/{run_location}/variant_counts_cleaned.tsv'
     run:
         import pandas as pd
+        from utr3variants.utils import extract_annotations
 
         df = pd.read_table(input.counts,sep='\t')
+        df = extract_annotations(df,'target',ALL_ANNOTATIONS)
+
         if 'hexamer_motif' in ALL_ANNOTATIONS:
-            df = df[df.hexamer_motif != 'Arich']  # remove A-rich hexamers
+            # TODO: bin hexamers
+            df = df[df.hexamer_motif != 'AAAAAA']  # remove A-rich hexamers
+
         if 'percent_expressed' in ALL_ANNOTATIONS:
-            df['percent_expressed'] = pd.cut(df.percent_expressed.astype(float), 10).astype(str)
+            df['percent_expressed'] = pd.cut(
+                pd.to_numeric(df.percent_expressed, errors='coerce'),10
+            ).astype(str)
+
         # fill in blank values
         df['database'].fillna('gnomAD',inplace=True)
         df['feature'].fillna('other variant',inplace=True)
-        for anno in [x for x in ALL_ANNOTATIONS if x not in ['feature', 'database']]:
-            df[anno].fillna(df.feature,inplace=True)
+        # for anno in [x for x in ALL_ANNOTATIONS if x not in ['feature', 'database']]:
+        #    df[anno].fillna(df.feature,inplace=True)
+
         df.to_csv(output.counts,sep='\t',index=False)
 
 
