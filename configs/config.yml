@@ -7,10 +7,10 @@ local: false
 genome_assembly: GRCh37
 
 chr_subsets:
-  chr22_small: '22:1-17304566'
-  # chr22: '22:1-51304566' # end: 51304566
-  # chr1: '1:1-end'
-  # genome: 'all'
+  #chr22_small: '22:15898571-31761088'
+  #chr22: '22:1-end'
+  #chr1: '1:1-end'
+  genome: 'all'
 
 gnomAD:
   version: 2.1.1
@@ -28,18 +28,22 @@ PolyA_DB:
     - hexamer_motif
     - conservation
     - percent_expressed
+    - expression
+    - most_expressed
 
 Gencode:
   url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh37_mapping/gencode.v36lift37.annotation.gff3.gz
   chr_style: chr
 
-PolyASite:
+PolyASite2:
   url: https://polyasite.unibas.ch/download/atlas/2.0/GRCh38.96/atlas.clusters.2.0.GRCh38.96.bed.gz
   chr_style: ''
   ref: GRCh38
   annotation_columns:
     - hexamer_motif
     - percent_expressed
+    - expression
+    - most_expressed
 
 APAatlas_DaPars:
   url: https://hanlab.uth.edu/static/download/matrix/PDUI.txt.zip
@@ -58,11 +62,16 @@ aggregations:
   # Each of the entries must be a valid field of the singleton count table
   # At least one entry must be given, e.g. 'hexamer-overall' will plot 'hexamer' in the
   # x-axis and colour by 'overall', but does not facet the plot
-  - hexamer_motif-conservation-feature
-  - hexamer_motif-feature-conservation
-  - conservation-database
-  - conservation-feature
-  - hexamer_motif-conservation
+  - worst_csq
   - database-feature
-  - database-hexamer_motif-feature
-  - database-conservation-feature
+  - percent_expressed-feature-database
+  - percent_expressed-database-feature
+  - database-most_expressed-feature
+  - feature-most_expressed-database
+  - hexamer_motif-database
+  - hexamer_motif-hexamer_motif_bin
+  - hexamer_motif-hexamer_motif_bin-conservation
+  - hexamer_motif-hexamer_motif_bin-database
+  - hexamer_motif_bin-conservation-database
+  - hexamer_motif_bin-most_expressed
+  - expression-database-feature
