@@ -15,6 +15,7 @@ dt_csq <- maps_reference(count_dt)
 # get aggregation MAPS
 aggregations <- strsplit(snakemake@wildcards$aggregation, '-')[[1]]
 dt <- maps(count_dt, grouping = aggregations)
+setorder(dt, -maps)
 fwrite(dt, snakemake@output$tsv, sep = '\t')
 
 # Plot only top n variants
@@ -26,27 +27,27 @@ new_columns <- c('anno_x', 'shape', 'facet')[seq_along(aggregations)]
 if (length(aggregations) == 3) {
   if ('database' %in% aggregations) {
     flatten_values <- c('GENCODE', 'gnomAD')
-    dt_lines <- dt[database %in% flatten_values]
+    #dt_lines <- dt[database %in% flatten_values]
     dt <- dt[!database %in% flatten_values]
   } else if ('feature' %in% aggregations) {
     flatten_values <- c('3UTR', 'other variant')
-    dt_lines <- dt[feature %in% flatten_values]
+    #dt_lines <- dt[feature %in% flatten_values]
     dt <- dt[!feature %in% flatten_values]
   }
-  setnames(dt_lines, old = aggregations, new = new_columns)
+  #setnames(dt_lines, old = aggregations, new = new_columns)
 }
 
 setnames(dt, old = aggregations, new = new_columns)
-# dt[, anno_x := paste0(anno_x, '\n(', variant_count, ')')]
+dt[, anno_x := factor(anno_x, levels = unique(anno_x), ordered = TRUE)]
 
 title <- paste0('MAPS on ', snakemake@wildcards$chr_subset,
                 ' (', snakemake@params$chr_subset, ')')
 dodge_width <- 0.5
 
 if ('shape' %in% names(dt)) {
-  p <- ggplot(dt, aes(anno_x, maps, color = shape, group = shape))
+  p <- ggplot(dt, aes(reorder(anno_x, -maps), maps, color = shape, group = shape))
 } else {
-  p <- ggplot(dt, aes(anno_x, maps))
+  p <- ggplot(dt, aes(reorder(anno_x, -maps), maps))
 }
 
 if ('facet' %in% names(dt)) {
@@ -63,28 +64,6 @@ if (exists('dt_lines')) {
 }
 
 p <- p +
-  geom_hline(  # add lines for reference
-    aes(yintercept = maps, group = consequence),
-    data = dt_csq[, .(maps, consequence)],
-    linetype = 'dashed',
-    color = 'grey50'
-  ) +
-  geom_text(
-    aes(x = '', y = maps, label = consequence, vjust = -0.3),
-    data = dt_csq,
-    inherit.aes = FALSE,
-    size = 3
-  ) +
-  geom_text(
-    aes(y = min(maps - maps_sem) - 0.01, label = variant_count),
-    size = 3,
-    position = position_dodge(dodge_width)
-  ) +
-  geom_errorbar(
-    aes(ymin = maps - maps_sem, ymax = maps + maps_sem),
-    width = 0.15,
-    position = position_dodge(width = dodge_width)
-  ) +
   geom_point(position = position_dodge(width = dodge_width)) +
   labs(
     title = title,
@@ -92,10 +71,34 @@ p <- p +
     y = 'MAPS',
     color = toTitleCase(aggregations[2])
   ) +
+  geom_hline(  # add lines for reference
+    aes(yintercept = maps, group = consequence),
+    data = dt_csq[, .(maps, consequence)],
+    linetype = 'dashed',
+    color = 'grey50'
+  ) +
+  geom_text(
+    aes(x = 0, y = maps, label = consequence, vjust = 1.3),
+    hjust = -0.05,
+    data = dt_csq,
+    inherit.aes = FALSE,
+    size = 2.5
+  ) +
+  geom_text(
+    aes(y = min(maps - maps_sem) - 0.03, label = variant_count),
+    size = 3,
+    angle = 30,
+    position = position_dodge(dodge_width)
+  ) +
+  geom_errorbar(
+    aes(ymin = maps - maps_sem, ymax = maps + maps_sem),
+    width = 0.15,
+    position = position_dodge(width = dodge_width)
+  ) +
   #scale_color_brewer(palette = 'Set1') +
   theme_classic() +
   theme(
-    legend.position = 'right',
+    legend.position = 'bottom',
     axis.text.x = element_text(angle = 90, hjust = 1),
     axis.ticks = element_blank(),
   )

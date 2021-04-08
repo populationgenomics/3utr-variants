@@ -117,7 +117,7 @@ rule MAPS:
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
     params:
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        variant_count_min=10,
+        variant_count_min=100,
     conda:
         "../envs/utr-variants-r.yml"
     script: '../scripts/maps.R'
