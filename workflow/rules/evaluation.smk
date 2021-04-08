@@ -84,12 +84,18 @@ rule clean_variant_counts:
         df = extract_annotations(df,'target',ALL_ANNOTATIONS)
 
         if 'hexamer_motif' in ALL_ANNOTATIONS:
-            # TODO: bin hexamers
             df = df[df.hexamer_motif != 'AAAAAA']  # remove A-rich hexamers
+            # bin hexamers
+            df['hexamer_motif_bin'] = df.hexamer_motif
+            df.loc[
+                (df.feature == 'hexamer') &
+                ~df.hexamer_motif.isin(['AATAAA', 'ATTAAA'])
+                , 'hexamer_motif_bin'
+            ] = 'other hexamer'
 
         if 'percent_expressed' in ALL_ANNOTATIONS:
             df['percent_expressed'] = pd.cut(
-                pd.to_numeric(df.percent_expressed, errors='coerce'),10
+                pd.to_numeric(df.percent_expressed,errors='coerce'),10
             ).astype(str)
 
         # fill in blank values
