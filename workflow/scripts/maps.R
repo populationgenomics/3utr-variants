@@ -15,7 +15,11 @@ dt_csq <- maps_reference(count_dt)
 # get aggregation MAPS
 aggregations <- strsplit(snakemake@wildcards$aggregation, '-')[[1]]
 dt <- maps(count_dt, grouping = aggregations)
-setorder(dt, -maps)
+if (aggregations[1] %in% c('expression', 'percent_expressed')) {
+  setorderv(dt, aggregations[1], 1)
+} else {
+  setorder(dt, -maps)
+}
 fwrite(dt, snakemake@output$tsv, sep = '\t')
 
 # Plot only top n variants
@@ -45,9 +49,9 @@ title <- paste0('MAPS on ', snakemake@wildcards$chr_subset,
 dodge_width <- 0.5
 
 if ('shape' %in% names(dt)) {
-  p <- ggplot(dt, aes(reorder(anno_x, -maps), maps, color = shape, group = shape))
+  p <- ggplot(dt, aes(anno_x, maps, color = shape, group = shape))
 } else {
-  p <- ggplot(dt, aes(reorder(anno_x, -maps), maps))
+  p <- ggplot(dt, aes(anno_x, maps))
 }
 
 if ('facet' %in% names(dt)) {
@@ -86,7 +90,7 @@ p <- p +
   ) +
   geom_text(
     aes(y = min(maps - maps_sem) - 0.03, label = variant_count),
-    size = 3,
+    size = 2.5,
     angle = 30,
     position = position_dodge(dodge_width)
   ) +
