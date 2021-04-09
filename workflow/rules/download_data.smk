@@ -10,7 +10,7 @@ rule genomepy:
             multiext(str(output_root / "reference/{assembly}/{assembly}"),
                 ".fa",".fa.fai",".fa.sizes",".annotation.gtf.gz",".annotation.bed.gz")
         )
-    log: str(output_root / "logs/genomepy_{assembly}.log")
+    log: str(output_root / "reference/{assembly}/genomepy_{assembly}.log")
     params:
         provider="UCSC"  # optional, defaults to ucsc. Choose from ucsc, ensembl, and ncbi
     cache: True  # mark as eligible for between workflow caching
@@ -30,11 +30,22 @@ rule get_fasta:
     input: expand(rules.genomepy.output,assembly=config['assembly_ucsc'])
 
 
-rule download_PolyA_DB:
-    # Download and extract PolyA_DB3 annotation
-    output: output_root / 'annotations/PolyA_DB3/human.PAS.txt'
+rule download_chainfile:
+    output: output_root / 'reference/hg38ToHg19.over.chain'
     params:
-        url=config['databases']['PolyA_DB']['url']
+        url='ftp://hgdownload.cse.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz'
+    shell:
+        """
+        wget --timestamping {params.url} -O {output}.gz
+        gunzip {output}.gz
+        """
+
+
+rule download_PolyA_DB:
+    # Download and extract PolyA_DB v3 annotation
+    output: output_root / 'annotations/PolyA_DB/human.PAS.txt'
+    params:
+        url=config['PolyA_DB']['url']
     shell:
         """
         tmpdir="$(dirname "$(tempfile)")"
@@ -48,8 +59,19 @@ rule download_Gencode:
     # Download GENCODE gene annotation
     output: output_root / 'annotations/Gencode/gencode.v36lift37.annotation.gff3.gz'
     params:
-        url=config['databases']['Gencode']['url']
+        url=config['Gencode']['url']
     shell:
         """
         wget -nc -P $(dirname {output}) {params.url}
+        """
+
+
+rule download_PolyASite2:
+    output: output_root / 'annotations/PolyASite2/atlas.clusters.2.0.GRCh38.96.bed'
+    params:
+        url = config['PolyASite2']['url']
+    shell:
+        """
+        wget -nc -P $(dirname {output}) {params.url}
+        gzip -d {output}.gz
         """

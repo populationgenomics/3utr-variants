@@ -2,11 +2,21 @@
 Merge different UTR intervals and annotate
 """
 import tempfile
+from functools import reduce
+import pandas as pd
+from pandas.api.types import CategoricalDtype
 import pybedtools
-from utr3variants.utils import convert_chr_style
+from utr3variants.utils import (
+    encode_annotations,
+    extract_annotations,
+    convert_chromosome,
+)
 
-# map annotation to column in |-separated annotation entry
-ANNOTATION_MAP = {'overall': -1, 'hexamer': 0, 'conserved': 1}
+BED_COLS = ['chrom', 'start', 'end', 'name', 'score', 'strand']
+CANONICAL_CHROMOSOMES = [str(x) for x in list(range(1, 23))] + ['X', 'Y']
+CANONICAL_CHROMOSOMES_CHR = [f'chr{chr}' for chr in CANONICAL_CHROMOSOMES]
+
+chr_dtype = CategoricalDtype(CANONICAL_CHROMOSOMES, ordered=True)
 
 
 def rename_interval(
@@ -38,48 +48,85 @@ def rename_interval(
 
 
 if __name__ == '__main__':
-    utrs = pybedtools.BedTool(snakemake.input.utrs.__str__())
-    hexamers = pybedtools.BedTool(snakemake.input.hexamers.__str__())
-    pas = pybedtools.BedTool(snakemake.input.pas.__str__())
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        other_utr = (
-            utrs.subtract(hexamers)  # pylint: disable=too-many-function-args
-            .subtract(pas)
-            .each(rename_interval, name='other_UTR|other_UTR|other_UTR')
-            .saveas(f'{tmp_dir}/other_utr.bed')
-        )
-        hexamers = hexamers.each(
-            rename_interval,
-            prefix='hexamer',
-        ).saveas(f'{tmp_dir}/hexamer.bed')
-        pas = pas.each(
-            rename_interval,
-            prefix='PAS',
-        ).saveas(f'{tmp_dir}/pas.bed')
-
-        # concatenate regions
-        bed = other_utr.cat(hexamers, pas, postmerge=False).sort()
-
-        # convert chromosome format to match gnomAD dataset
-        bed = bed.each(
-            convert_chr_style, chr_style=snakemake.params['chr_style_gnomAD']
-        )
-
-        df = bed.saveas(f'{tmp_dir}/merged.bed').to_dataframe()
-
-    # split annotation columns
+    chr_style = snakemake.params.chr_style_gnomAD
     annotations = snakemake.params.annotations
-    df[annotations] = df.name.str.split('|', expand=True)
+    chainfile = snakemake.input.chainfile.__str__()
 
-    # convert to hail-parsable locus interval
-    df['locus_interval'] = (
-        '(' + df.chrom.map(str) + ':' + df.start.map(str) + '-' + df.end.map(str) + ']'
+    utrs = pd.read_table(
+        snakemake.input.utrs.__str__(), sep='\t', dtype=str, names=BED_COLS
+    )  # pybedtools.BedTool(snakemake.input.utrs.__str__())
+    polya_db = pd.read_table(snakemake.input.PolyA_DB.__str__(), sep='\t', dtype=str)
+    polya_site = pd.read_table(
+        snakemake.input.PolyASite2.__str__(), sep='\t', dtype=str
     )
 
-    # remove redundant columns
-    df = df[['locus_interval', 'strand'] + annotations]
+    # liftover PolyASite2 to hg19
+    pasite_anno = [x for x in annotations if x in polya_site.columns]
+    polya_site = encode_annotations(polya_site, pasite_anno, 'name')
+    polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site[BED_COLS]).liftover(
+        chainfile
+    )
+    polya_site = extract_annotations(
+        polya_site_bed.to_dataframe(dtype=str), 'name', pasite_anno
+    )
+    polya_site = polya_site[polya_site.chrom.isin(CANONICAL_CHROMOSOMES_CHR)]
+
+    # convert chromosome format to match gnomAD dataset
+    print('Convert chromosome styles')
+    utrs.chrom = utrs.chrom.apply(lambda x: convert_chromosome(x, chr_style))
+    polya_db.chrom = polya_db.chrom.apply(lambda x: convert_chromosome(x, chr_style))
+    polya_site.chrom = polya_site.chrom.apply(
+        lambda x: convert_chromosome(x, chr_style)
+    )
+
+    # subtract from 3'UTR
+    utrs_bed = pybedtools.BedTool.from_dataframe(utrs)
+    polya_db_bed = pybedtools.BedTool.from_dataframe(polya_db)
+    polya_site_bed = pybedtools.BedTool.from_dataframe(polya_site)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        other_utr = (
+            utrs_bed.subtract(polya_db_bed)  # pylint: disable=too-many-function-args
+            .subtract(polya_site_bed)
+            .saveas(f'{tmp_dir}/other_utr.bed')
+            .to_dataframe(dtype=str)
+        )
+        other_utr['database'] = 'GENCODE'
+        other_utr['feature'] = '3UTR'
+
+    # merge all intervals via pandas
+    df = reduce(
+        lambda df_left, df_right: pd.merge(
+            df_left,
+            df_right,
+            how='outer',
+            on=list(set(df_left.columns) & set(df_right.columns)),
+        ),
+        [other_utr, polya_db, polya_site],
+    )
+
+    # sort intervals
+    df['chrom'] = df['chrom'].astype(str).astype(chr_dtype)
+    df.sort_values(by=['chrom', 'start', 'end', 'strand'], inplace=True)
+
+    print('Create hail-parsable locus intervals')
+    df['locus_interval'] = (
+        '('
+        + df.chrom.astype(str)
+        + ':'
+        + df.start.map(str)
+        + '-'
+        + df.end.map(str)
+        + ']'
+    )
+
+    # Encode annotations
+    df = encode_annotations(df, annotations, 'name', verbose=True)
 
     # save
-    print(df.head())
-    df.to_csv(snakemake.output.intervals, sep='\t', index=False)
+    print('save...')
+    df[['locus_interval', 'strand'] + annotations].to_csv(
+        snakemake.output.intervals, sep='\t', index=False
+    )
+    df[['chrom', 'start', 'end', 'name', 'score', 'strand']].to_csv(
+        snakemake.output.bed, sep='\t', index=False, header=False
+    )

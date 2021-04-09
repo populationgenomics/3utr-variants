@@ -10,7 +10,7 @@ GS = GSRemoteProvider()
 rule count_singletons_GCP:
     # Count singeltons on Google Cloud
     input:
-        intervals=rules.merge_UTR_intervals.output.intervals,
+        intervals=rules.merge_UTR_intervals.output.bed,
     output:
         maps=config["bucket"] + '/{chr_subset}/variant_count.tsv',
     params:
@@ -18,7 +18,7 @@ rule count_singletons_GCP:
         annotate_gnomad='utr3variants/annotate_gnomad.py',
         maps='utr3variants/maps.py',
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        annotations=INTERVAL_ANNOTATIONS
+        annotations=ALL_ANNOTATIONS
     shell:
         """
         INTERVAL_PATH="gs://{config[bucket]}/$(basename {input})"
@@ -53,12 +53,12 @@ rule prepare_gnomAD:
 rule count_variants_local:
     # Count variants locally
     input:
-        intervals=rules.merge_UTR_intervals.output.intervals,
+        intervals=rules.merge_UTR_intervals.output.bed,
         gnomAD=rules.prepare_gnomAD.output.gnomAD_ht
     output:
         counts=output_root / '{chr_subset}/local/variant_counts.tsv',
     params:
-        annotations=INTERVAL_ANNOTATIONS,
+        annotations=ALL_ANNOTATIONS,
     log: hail=str(output_root / 'logs/local_{chr_subset}_counts.log')
     script: '../scripts/count_singletons.py'
 
@@ -73,16 +73,51 @@ def count_file(wildcards):
         else GS.remote(rules.count_singletons_GCP.output.maps,keep_local=True)
 
 
+rule clean_variant_counts:
+    input: counts=count_file
+    output: counts=output_root / '{chr_subset}/{run_location}/variant_counts_cleaned.tsv'
+    run:
+        import pandas as pd
+        from utr3variants.utils import extract_annotations
+
+        df = pd.read_table(input.counts,sep='\t')
+        df = extract_annotations(df,'target',ALL_ANNOTATIONS)
+
+        if 'hexamer_motif' in ALL_ANNOTATIONS:
+            df = df[df.hexamer_motif != 'AAAAAA']  # remove A-rich hexamers
+            # bin hexamers
+            df['hexamer_motif_bin'] = df.hexamer_motif
+            df.loc[
+                (df.feature == 'hexamer') &
+                ~df.hexamer_motif.isin(['AATAAA', 'ATTAAA'])
+                , 'hexamer_motif_bin'
+            ] = 'other hexamer'
+
+        if 'percent_expressed' in ALL_ANNOTATIONS:
+            df['percent_expressed'] = pd.cut(
+                pd.to_numeric(df.percent_expressed,errors='coerce'),10
+            ).astype(str)
+
+        # fill in blank values
+        df['database'].fillna('gnomAD',inplace=True)
+        df['feature'].fillna('other variant',inplace=True)
+        # for anno in [x for x in ALL_ANNOTATIONS if x not in ['feature', 'database']]:
+        #    df[anno].fillna(df.feature,inplace=True)
+
+        df.to_csv(output.counts,sep='\t',index=False)
+
+
 rule MAPS:
-    # Compute MAPS locally
+    # Compute MAPS according to aggregations in wildcard and plot
     input:
-        counts=count_file,
+        counts=rules.clean_variant_counts.output,
         utils='workflow/scripts/utils.R'
     output:
         tsv=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.tsv',
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
     params:
-        chr_subset = lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+        chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
+        variant_count_min=100,
     conda:
         "../envs/utr-variants-r.yml"
     script: '../scripts/maps.R'

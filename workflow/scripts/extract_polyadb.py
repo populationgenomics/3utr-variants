@@ -1,19 +1,30 @@
 """
 Extract PolyA sites and cis-elements & flanking regions from PolyA_DB3
 
-When run as script:
-    Input:
-        PolyA_DB database file
-        reference sequence in FASTA format
-    Output: bed files (see rules/extract_UTR_features.smk)
+Input:
+    PolyA_DB database file
+    reference sequence in FASTA format (for locating hexamers)
+Output:
+    TSV file of PAS and hexamer intervals with all annotations in columns
 """
 
 import re
 from typing import Iterable
 from typing import List
+import numpy as np
 import pandas as pd
 import pybedtools
 from pysam import FastaFile  # pylint: disable=no-name-in-module
+from utr3variants.utils import extract_annotations, get_most_expressed
+
+ANNO_COLUMN_MAP = {
+    # Mapping of snakemake wildcard to column name in database
+    'hexamer_motif': 'PAS Signal',
+    'conservation': 'Conservation',
+    'percent_expressed': 'PSE',
+    'expression': 'Mean RPM',
+    'most_expressed': 'most_expressed',
+}
 
 
 def create_signal_interval(
@@ -47,7 +58,7 @@ def create_signal_interval(
 
 
 def get_hexamers(
-    feature: pybedtools.Interval, sequence: str
+    feature: pybedtools.Interval, sequence: str, hexamer_column: int
 ) -> List[pybedtools.Interval]:
     """
     Retrieve all hexamers of regions from within given interval
@@ -55,13 +66,15 @@ def get_hexamers(
     :param feature: interval with interval.name containing annotation
         of form <PAS signal>|<conservation>
     :param sequence: sequence of feature interval
+    :param hexamer_column: column index of hexamer in feature name
     :return: list of hexamer coordinates
     """
-    signal_type, conservation = feature.name.split('|')  # pylint: disable=W0612
+    name_split = feature.name.split('|')
+    hexamer_motif = name_split[hexamer_column]
 
-    if signal_type == 'NoPAS':
+    if hexamer_motif == 'NoPAS':
         return []
-    if signal_type == 'OtherPAS':
+    if hexamer_motif == 'OtherPAS':
         signal_sequences = [
             'AGTAAA',
             'TATAAA',
@@ -73,66 +86,100 @@ def get_hexamers(
             'AAAAAG',
             'ACTAAA',
         ]
-    elif signal_type == 'Arich':
+    elif hexamer_motif == 'Arich':
         signal_sequences = ['AAAAAA']
     else:
-        signal_sequences = [signal_type]
+        signal_sequences = [hexamer_motif]
     dna_signals = [s.replace('U', 'T') for s in signal_sequences]
 
     hexamer_list = []
     for signal in dna_signals:
-        intervals = create_signal_interval(feature, signal, sequence)
+        name_split[hexamer_column] = signal  # rename hexamer annotation
+        intervals = create_signal_interval(
+            feature, signal, sequence, name='|'.join(name_split)
+        )
         hexamer_list.extend(intervals)
     return hexamer_list
 
 
 if __name__ == '__main__':
     genome = snakemake.config['assembly_ucsc']
+    annotations = snakemake.params.annotations
     pas_db = snakemake.input.db.__str__()
     fasta_file = snakemake.input.fasta.__str__()
     output = snakemake.output
 
     print('read database')
     df = pd.read_csv(pas_db, sep='\t')
+
+    # cleanup columns
+    df['Start'] = df['Position'] - 1
     df['PSE'] = df['PSE'].str.rstrip('%').astype('float') / 100
+    df['score'] = '.'
+
+    df = get_most_expressed(
+        df,
+        aggregate_column='Gene Symbol',
+        expression_column='Mean RPM',
+        interval_columns=['Chromosome', 'Position', 'Strand'],
+        new_column='most_expressed',
+    )
+    annotations.append('most_expressed')
+
+    # put annotation into name
+    db_cols = [ANNO_COLUMN_MAP[a] for a in annotations]
+    df['Name'] = df[db_cols].astype(str).agg('|'.join, axis=1)
 
     # create bedtools object/table
-    df['Start'] = df['Position'] - 1
-    df['Name'] = df['PAS Signal'] + '|' + df['Conservation']
+    print('Create BedTools object')
+    # BedTool object needed for hexamer extraction
     bed_cols = [
         'Chromosome',  # chrom
         'Start',  # start
         'Position',  # end
         'Name',  # name
-        'PSE',  # score
+        'score',  # score
         'Strand',  # strand
     ]
-    bed = pybedtools.BedTool.from_dataframe(df[bed_cols].drop_duplicates())
-    print('BedTools object created')
+    bed = pybedtools.BedTool.from_dataframe(df[bed_cols])
 
-    print('get flanking regions')
-    bed_40nt = bed.slop(b=40, genome=genome)  # pylint: disable=unexpected-keyword-arg
-    bed_100nt = bed.slop(b=100, genome=genome)  # pylint: disable=unexpected-keyword-arg
+    # convert back to dataframe with annotations
+    intervals_df = extract_annotations(
+        bed.to_dataframe(),
+        annotation_string='name',
+        annotation_columns=annotations,
+        database='PolyA_DB',
+        feature='PAS',
+    )
 
-    print('extract hexamers')
-    bed_40nt_us = bed.slop(  # pylint: disable=unexpected-keyword-arg
-        l=40, r=0, s=True, genome=genome
-    ).sequence(fi=fasta_file, s=True, fullHeader=True)
-    sequences = FastaFile(bed_40nt_us.seqfn)
+    if 'hexamer_motif' in annotations:
+        print('extract hexamers')
+        bed_40nt_us = bed.slop(  # pylint: disable=unexpected-keyword-arg
+            l=40, r=0, s=True, genome=genome
+        ).sequence(fi=fasta_file, s=True, fullHeader=True)
+        sequences = FastaFile(bed_40nt_us.seqfn)
 
-    hexamer_intervals = []
-    for f in bed_40nt_us:
-        seq = sequences.fetch(f'{f.chrom}:{f.start}-{f.stop}({f.strand})')
-        hexamer_intervals.extend(get_hexamers(f, seq))
-    hexamers_bed = pybedtools.BedTool(hexamer_intervals)
+        hexamer_intervals = []
+        hex_column = annotations.index('hexamer_motif')
+        for f in bed_40nt_us:
+            seq = sequences.fetch(f'{f.chrom}:{f.start}-{f.stop}({f.strand})')
+            hex_intervals = get_hexamers(
+                feature=f, sequence=seq, hexamer_column=hex_column
+            )
+            hexamer_intervals.extend(hex_intervals)
 
-    # get stats
-    with open(output.stats, 'w') as f:
-        f.write(f'pA sites: {len(bed)}\n')
-        f.write(f'hexamers: {len(hexamers_bed)}\n')
+        hex_df = pybedtools.BedTool(hexamer_intervals).to_dataframe()
+        hex_df = extract_annotations(
+            hex_df,
+            annotation_string='name',
+            annotation_columns=annotations,
+            database='PolyA_DB',
+            feature='hexamer',
+        )
+        intervals_df['hexamer_motif'] = np.nan
+        intervals_df = pd.concat([intervals_df, hex_df])
 
     print('save...')
-    bed.saveas(output.PAS)
-    bed_40nt.saveas(output.PAS_context_40nt)
-    bed_100nt.saveas(output.PAS_context_100nt)
-    hexamers_bed.saveas(output.PAS_hexamers)
+    # get stats
+    intervals_df['feature'].value_counts().to_csv(output.stats, sep='\t')
+    intervals_df.to_csv(output.intervals, index=False, sep='\t')
