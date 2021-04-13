@@ -19,17 +19,49 @@ def import_interval_table(paths, interval_field, **kwargs):
     ).key_by(interval_field)
 
 
-def annotate_by_intervals(ht, intervals_ht, columns) -> hl.Table:
+def annotate_by_intervals(
+    ht: hl.Table, intervals_ht: hl.Table, columns: List
+) -> hl.Table:
     """
-    Annotate a locus-keyed hail table by interval-level annotation
+    Annotate a locus-keyed hail table by non-overlapping interval-level annotations
 
     :param  ht: hail table to be annotated
     :param intervals_ht: hail table keyed by non-overlapping intervals
-        and named annotation columns
-    :param columns: annotation columns in intervals intervals_ht
+    :param columns: annotation columns in intervals_ht
     """
     annotation = {c: hl.coalesce(intervals_ht[ht.locus][c], '') for c in columns}
     return ht.annotate(**annotation)
+
+
+def annotate_by_overlapping_intervals(
+    ht: hl.Table, intervals_ht: hl.Table, column: str, fill: str = ''
+) -> hl.Table:
+    """
+    Annotate a locus-keyed hail table by overlapping interval-level annotations
+    Duplicate variants for overlapping annotations and mark duplicates with the ht.key
+    Annotations are stored in `ht[column]`, duplicates under `ht.duplicates`
+
+    :param  ht: hail table to be annotated
+    :param intervals_ht: hail table keyed by overlapping intervals
+    :param column: annotation column in intervals_ht
+    :param fill: string to use for empty annotations
+    """
+    # annotate all matching values
+    ht = ht.annotate(**{column: intervals_ht.index(ht.locus, all_matches=True)[column]})
+
+    # fill empty entries
+    ht = ht.annotate(
+        **{
+            column: hl.if_else(
+                ht[column].length() == 0, ht[column].append(fill), ht[column]
+            )
+        }
+    )
+
+    # mark duplicates
+    ht = ht.annotate(duplicates=ht[column].length())
+
+    return ht.explode(column)
 
 
 def annotate_for_maps(ht, context_ht) -> hl.Table:

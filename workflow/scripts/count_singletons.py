@@ -9,7 +9,7 @@ Count variants, singletons and determine expected singletons for MAPS score (loc
 """
 import hail as hl
 import pandas as pd
-from utr3variants.annotate_gnomad import annotate_by_intervals
+from utr3variants.annotate_gnomad import annotate_by_overlapping_intervals
 from utr3variants.maps import count_for_maps
 
 
@@ -30,12 +30,12 @@ if __name__ == '__main__':
     ht = hl.read_table(gnomad_path)
     intervals = hl.import_bed(interval_file, min_partitions=100)
 
-    ht = annotate_by_intervals(ht, intervals, columns=['target'])
+    ht = annotate_by_overlapping_intervals(ht, intervals, column='target', fill='')
 
     count_ht = count_for_maps(
         ht,
         mutation_ht,
-        additional_grouping=['target'],
+        additional_grouping=['target', 'duplicates'],
         skip_mut_check=snakemake.config['gnomAD']['skip_checks'],
     )
 
