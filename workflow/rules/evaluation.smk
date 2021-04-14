@@ -87,6 +87,7 @@ rule clean_variant_counts:
             df = df[df.hexamer_motif != 'AAAAAA']  # remove A-rich hexamers
             # bin hexamers
             df['hexamer_motif_bin'] = df.hexamer_motif
+            df.loc[df.feature == 'PAS', 'hexamer_motif_bin'] = 'PAS'
             df.loc[
                 (df.feature == 'hexamer') &
                 ~df.hexamer_motif.isin(['AATAAA', 'ATTAAA'])
@@ -94,9 +95,9 @@ rule clean_variant_counts:
             ] = 'other hexamer'
 
         if 'percent_expressed' in ALL_ANNOTATIONS:
-            df['percent_expressed'] = pd.cut(
-                pd.to_numeric(df.percent_expressed,errors='coerce'),10
-            ).astype(str)
+            df['percent_expressed'] = pd.to_numeric(df.percent_expressed,errors='coerce')
+            df = df[df.percent_expressed.isnull() | (df.percent_expressed >= 0.3)]
+            #df['percent_expressed'] = pd.cut(df.percent_expressed,3).astype(str)
 
         # fill in blank values
         df['database'].fillna('gnomAD',inplace=True)
@@ -117,7 +118,7 @@ rule MAPS:
         png=output_root / '{chr_subset}/{run_location}/MAPS/{aggregation}.png',
     params:
         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-        variant_count_min=100,
+        variant_count_min=50,
     conda:
         "../envs/utr-variants-r.yml"
     script: '../scripts/maps.R'
@@ -130,45 +131,3 @@ def gather_files(wildcards, target, **kwargs):
     if wildcards.run_location == 'local':
         return expand(target,**kwargs)
     return GS.remote(expand(target.__str__(),**kwargs),keep_local=True)
-
-
-# rule gather_MAPS:
-#     # Merge different MAPS results into single table
-#     input:
-#         lambda wildcards: expand(
-#             rules.MAPS.output.maps,
-#             annotation=interval_annotations+['worst_csq'],
-#             allow_missing=True
-#         )
-#     output: output_root / '{chr_subset}/{run_location}/MAPS.tsv'
-#     run:
-#         import pandas as pd
-#
-#         df_list = []
-#         for annotation, file in zip(interval_annotations+['worst_csq'],input):
-#             df = pd.read_table(file.__str__(),sep='\t')
-#             df['annotation'] = annotation
-#             df_list.append(df)
-#         df_all = pd.concat(df_list)
-#         df_all.to_csv(output[0],index=False,sep='\t')
-#
-#
-# rule plots:
-#     input: rules.MAPS.output.maps
-#     output:
-#         maps=output_root / '{chr_subset}/{run_location}/MAPS/{annotation}.png'
-#     params:
-#         chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset]
-#     script: '../scripts/plots_single.py'
-#
-#
-# rule plots_all:
-#     # Plot all MAPS results in single plot
-#     input:
-#         maps=rules.gather_MAPS.output
-#     output:
-#         maps=output_root / '{chr_subset}/{run_location}/MAPS.png'
-#     params:
-#       chr_subset=lambda wildcards: config['chr_subsets'][wildcards.chr_subset],
-#       annotations=interval_annotations
-#     script: '../scripts/plots.py'

@@ -19,7 +19,7 @@ import hail as hl
 from annotate_gnomad import (
     filter_gnomad,
     annotate_for_maps,
-    annotate_by_intervals,
+    annotate_by_overlapping_intervals,
 )
 from maps import count_for_maps  # pylint: disable=E0401,E0611
 
@@ -43,13 +43,13 @@ def main(args):
 
     print('Annotate')
     ht = annotate_for_maps(ht, context_ht)
-    ht = annotate_by_intervals(ht, intervals, columns=['target'])
+    ht = annotate_by_overlapping_intervals(ht, intervals, column='target', fill='')
 
     print('Count variants')
     count_ht = count_for_maps(
         ht,
         mutation_ht,
-        additional_grouping=['target'],
+        additional_grouping=['target', 'duplicates'],
         skip_mut_check=args.skip_checks,
     )
 

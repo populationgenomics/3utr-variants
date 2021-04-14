@@ -60,6 +60,7 @@ def extract_annotations(
     database: str = None,
     feature: str = None,
     verbose: bool = True,
+    remove=True,
 ):
     """
     Extract annotations and annotate database and feature
@@ -76,6 +77,8 @@ def extract_annotations(
     if verbose:
         print('Extract annotations...')
     df[annotation_columns] = df[annotation_string].str.split(sep, expand=True)
+    if remove:
+        del df[annotation_string]
     if database is not None and database not in df.columns:
         df['database'] = database
     if feature is not None and feature not in df.columns:
